@@ -8,6 +8,7 @@ require (
 	github.com/testcontainers/testcontainers-go/modules/kafka v0.36.0
 	github.com/twmb/franz-go v1.18.1
 	github.com/twmb/franz-go/pkg/kmsg v1.9.0
+	golang.org/x/text v0.22.0
 )
 
 require (
@@ -62,7 +63,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.35.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.5.0 // indirect
 	golang.org/x/crypto v0.35.0 // indirect
-	golang.org/x/mod v0.16.0 // indirect
+	golang.org/x/mod v0.17.0 // indirect
 	golang.org/x/sys v0.31.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250414145226-207652e42e2e // indirect
 	google.golang.org/protobuf v1.36.6 // indirect
