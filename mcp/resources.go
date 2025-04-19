@@ -6,12 +6,12 @@ import (
 	"log/slog"
 
 	"github.com/mark3labs/mcp-go/mcp"
-	mcpServer "github.com/mark3labs/mcp-go/server"
+	"github.com/mark3labs/mcp-go/server"
 	"github.com/tuannvm/kafka-mcp-server/kafka"
 )
 
 // RegisterResources defines and registers MCP resources with the server.
-func RegisterResources(s *mcpServer.MCPServer, kafkaClient *kafka.Client) {
+func RegisterResources(s *server.MCPServer, kafkaClient *kafka.Client) {
 	listTopicsResource := mcp.NewResource("list_topics",
 		"List available Kafka topics",
 	)

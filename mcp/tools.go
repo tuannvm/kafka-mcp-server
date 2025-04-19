@@ -7,7 +7,7 @@ import (
 	"log/slog"
 
 	"github.com/mark3labs/mcp-go/mcp"
-	mcpServer "github.com/mark3labs/mcp-go/server" // Import the server package with alias
+	"github.com/mark3labs/mcp-go/server" // Import directly without alias
 	"github.com/tuannvm/kafka-mcp-server/config"
 	"github.com/tuannvm/kafka-mcp-server/kafka"
 	"github.com/twmb/franz-go/pkg/kmsg"
@@ -15,7 +15,7 @@ import (
 
 // RegisterTools defines and registers MCP tools with the server.
 // Updated signature to accept config.Config
-func RegisterTools(s *mcpServer.MCPServer, kafkaClient *kafka.Client, cfg config.Config) {
+func RegisterTools(s *server.MCPServer, kafkaClient *kafka.Client, cfg config.Config) {
 	// --- produce_message tool definition and handler ---
 	produceTool := mcp.NewTool("produce_message",
 		mcp.WithDescription("Produce a message to a Kafka topic"),
