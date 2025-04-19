@@ -2,29 +2,29 @@ package mcp
 
 import (
 	"context"
-	"encoding/json" // Added for JSON marshalling
+	"encoding/json"
 	"log/slog"
 
-	mcp "github.com/mark3labs/mcp-go/mcp" // Explicit alias
+	"github.com/mark3labs/mcp-go/mcp"
+	mcpServer "github.com/mark3labs/mcp-go/server"
 	"github.com/tuannvm/kafka-mcp-server/kafka"
 )
 
 // RegisterResources defines and registers MCP resources with the server.
-func RegisterResources(s *mcp.Server, kafkaClient *kafka.Client) {
+func RegisterResources(s *mcpServer.MCPServer, kafkaClient *kafka.Client) {
 	listTopicsResource := mcp.NewResource("list_topics",
-		mcp.WithDescription("List available Kafka topics"), // Use WithDescription
+		"List available Kafka topics",
 	)
 
-	// Workaround: Use Tool request/result types for the resource handler signature
-	s.AddResource(listTopicsResource, func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	// Use the correct ResourceHandlerFunc signature
+	s.AddResource(listTopicsResource, func(ctx context.Context, req mcp.ReadResourceRequest) ([]mcp.ResourceContents, error) {
 		slog.InfoContext(ctx, "Executing list_topics resource")
 
 		// Call the actual Kafka client method
 		topics, err := kafkaClient.ListTopics(ctx)
 		if err != nil {
 			slog.ErrorContext(ctx, "Failed to list topics", "error", err)
-			// Use NewToolResultError as resource-specific error result seems unavailable
-			return mcp.NewToolResultError(err.Error()), nil
+			return nil, err
 		}
 
 		slog.InfoContext(ctx, "Successfully listed topics", "count", len(topics))
@@ -33,13 +33,15 @@ func RegisterResources(s *mcp.Server, kafkaClient *kafka.Client) {
 		jsonData, marshalErr := json.Marshal(topics)
 		if marshalErr != nil {
 			slog.ErrorContext(ctx, "Failed to marshal topics to JSON", "error", marshalErr)
-			// Use NewToolResultError for marshalling errors
-			return mcp.NewToolResultError("Internal server error: failed to marshal topics"), nil
+			return nil, marshalErr
 		}
 
-		// Use NewToolResultText with JSON content as resource-specific JSON result seems unavailable
-		// Note: This might result in Content-Type: text/plain instead of application/json
-		return mcp.NewToolResultText(string(jsonData)), nil
+		// Return as a single text resource content
+		return []mcp.ResourceContents{
+			&mcp.TextResourceContents{
+				Text: string(jsonData),
+			},
+		}, nil
 	})
 
 	// TODO: Add topic_metadata resource

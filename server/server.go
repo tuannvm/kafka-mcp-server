@@ -6,30 +6,30 @@ import (
 	"log/slog"
 	"os"
 
-	mcp "github.com/mark3labs/mcp-go/mcp" // Explicit alias
+	"github.com/mark3labs/mcp-go/server" // Correct import path
 	"github.com/tuannvm/kafka-mcp-server/config"
 )
 
 // NewMCPServer creates a new MCP server instance.
-func NewMCPServer(name, version string) *mcp.Server {
+func NewMCPServer(name, version string) *server.MCPServer {
 	// Configure logging (optional, customize as needed)
 	logger := slog.New(slog.NewJSONHandler(os.Stderr, nil))
 	slog.SetDefault(logger)
 
-	server := mcp.NewServer(name, version)
+	srv := server.NewMCPServer(name, version)
 	// Add middleware here if needed later
-	// server.Use(...)
-	return server
+	// srv.Use(...)
+	return srv
 }
 
 // Start runs the MCP server based on the configured transport.
-func Start(ctx context.Context, s *mcp.Server, cfg config.Config) error {
+func Start(ctx context.Context, s *server.MCPServer, cfg config.Config) error {
 	slog.Info("Starting MCP server", "transport", cfg.MCPTransport)
 
 	switch cfg.MCPTransport {
 	case "stdio":
-		// ServeStdio blocks until the context is cancelled or an error occurs.
-		return s.ServeStdio(ctx)
+		// ServeStdio is a standalone function in the server package, not a method on MCPServer
+		return server.ServeStdio(s)
 	case "http":
 		// TODO: Implement HTTP transport with SSE
 		return fmt.Errorf("HTTP transport not yet implemented")

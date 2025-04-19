@@ -1,7 +1,7 @@
 .PHONY: build test clean run-dev release-snapshot run-docker run docker-compose-up docker-compose-down lint
 
 # Variables
-BINARY_NAME=mcp-trino
+BINARY_NAME=kafka-mcp-server
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 BUILD_DIR=bin
 
