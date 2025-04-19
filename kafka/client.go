@@ -330,6 +330,68 @@ func (c *Client) ListTopics(ctx context.Context) ([]string, error) {
 	return topics, nil
 }
 
+// ListBrokers retrieves a list of broker addresses from the Kafka cluster.
+func (c *Client) ListBrokers(ctx context.Context) ([]string, error) {
+	// Use kmsg.NewMetadataRequest() to create the request struct
+	req := kmsg.NewMetadataRequest()
+	req.Topics = nil // Request metadata for all topics, which includes broker info
+
+	// RequestSharded returns *kgo.ShardedRequestPromise
+	// We need to await its result.
+	shardedResp := c.kgoClient.RequestSharded(ctx, &req)
+
+	brokerSet := make(map[string]struct{}) // Use map for deduplication
+	var firstError error
+
+	// Iterate through responses from each broker shard
+	for _, shard := range shardedResp {
+		if shard.Err != nil {
+			brokerID := shard.Meta.NodeID
+			slog.ErrorContext(ctx, "Metadata request shard error for brokers", "broker", brokerID, "error", shard.Err)
+			if firstError == nil {
+				firstError = fmt.Errorf("metadata request failed for broker %d: %w", brokerID, shard.Err)
+			}
+			continue // Try other brokers if possible
+		}
+
+		// Cast the response to the correct type
+		resp, ok := shard.Resp.(*kmsg.MetadataResponse)
+		if !ok {
+			slog.ErrorContext(ctx, "Unexpected response type for metadata request", "broker", shard.Meta.NodeID)
+			if firstError == nil {
+				firstError = fmt.Errorf("unexpected metadata response type from broker %d", shard.Meta.NodeID)
+			}
+			continue
+		}
+
+		// Process brokers from this response
+		for _, broker := range resp.Brokers {
+			brokerAddr := fmt.Sprintf("%s:%d", broker.Host, broker.Port)
+			brokerSet[brokerAddr] = struct{}{}
+		}
+		// Since broker list is cluster-wide, we likely only need one successful response.
+		// If we got brokers, we can stop processing shards.
+		if len(brokerSet) > 0 {
+			break
+		}
+	}
+
+	if len(brokerSet) > 0 {
+		brokers := make([]string, 0, len(brokerSet))
+		for broker := range brokerSet {
+			brokers = append(brokers, broker)
+		}
+		return brokers, nil
+	}
+
+	// If loop finished and brokerSet is empty, return the first error or a generic one
+	if firstError != nil {
+		return nil, firstError
+	}
+
+	return nil, fmt.Errorf("failed to retrieve broker list from any broker")
+}
+
 // DescribeTopic retrieves detailed metadata for a specific topic.
 func (c *Client) DescribeTopic(ctx context.Context, topicName string) (*TopicMetadata, error) {
 	req := kmsg.NewMetadataRequest()

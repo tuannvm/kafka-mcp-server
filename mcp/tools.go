@@ -351,7 +351,7 @@ func RegisterTools(s *server.MCPServer, kafkaClient kafka.KafkaClient, cfg confi
 
 		// For each topic, get additional metadata like partition count and replication factor
 		topicsWithMetadata := make([]map[string]interface{}, 0, len(topics))
-		
+
 		for _, topicName := range topics {
 			// Get detailed metadata for each topic
 			metadata, err := kafkaClient.DescribeTopic(ctx, topicName)
@@ -364,16 +364,16 @@ func RegisterTools(s *server.MCPServer, kafkaClient kafka.KafkaClient, cfg confi
 				})
 				continue
 			}
-			
+
 			// Calculate partition count and replication factor
 			partitionCount := len(metadata.Partitions)
-			
+
 			// Find the most common replication factor (assuming it's consistent across partitions)
 			replicationFactor := 0
 			if partitionCount > 0 && len(metadata.Partitions) > 0 {
 				replicationFactor = len(metadata.Partitions[0].Replicas)
 			}
-			
+
 			topicsWithMetadata = append(topicsWithMetadata, map[string]interface{}{
 				"name":               topicName,
 				"partition_count":    partitionCount,

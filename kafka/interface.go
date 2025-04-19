@@ -20,6 +20,9 @@ type KafkaClient interface {
 	// ListTopics retrieves a list of topic names from the Kafka cluster.
 	ListTopics(ctx context.Context) ([]string, error)
 
+	// ListBrokers retrieves a list of broker addresses from the Kafka cluster.
+	ListBrokers(ctx context.Context) ([]string, error) // Added ListBrokers method
+
 	// DescribeTopic retrieves detailed metadata for a specific topic.
 	DescribeTopic(ctx context.Context, topicName string) (*TopicMetadata, error)
 

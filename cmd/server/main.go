@@ -32,7 +32,7 @@ func main() {
 
 	// Load configuration
 	cfg := config.LoadConfig() // Changed from cfg, err := config.LoadConfig()
-	
+
 	// Initialize Kafka client
 	kafkaClient, err := kafka.NewClient(cfg)
 	if err != nil {
