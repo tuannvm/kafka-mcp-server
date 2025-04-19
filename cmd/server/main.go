@@ -44,9 +44,12 @@ func main() {
 	// Create MCP server
 	s := server.NewMCPServer("kafka-mcp-server", Version)
 
+	// Explicitly declare the client as the KafkaClient interface type
+	var kafkaInterface kafka.KafkaClient = kafkaClient
+
 	// Register MCP resources and tools
-	mcp.RegisterResources(s, kafkaClient)
-	mcp.RegisterTools(s, kafkaClient, cfg)
+	mcp.RegisterResources(s, kafkaInterface)
+	mcp.RegisterTools(s, kafkaInterface, cfg)
 
 	// Start server
 	slog.Info("Starting Kafka MCP server", "version", Version, "transport", cfg.MCPTransport)

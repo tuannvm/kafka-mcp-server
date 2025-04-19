@@ -15,7 +15,7 @@ import (
 
 // RegisterTools defines and registers MCP tools with the server.
 // Updated signature to accept config.Config
-func RegisterTools(s *server.MCPServer, kafkaClient *kafka.Client, cfg config.Config) {
+func RegisterTools(s *server.MCPServer, kafkaClient kafka.KafkaClient, cfg config.Config) {
 	// --- produce_message tool definition and handler ---
 	produceTool := mcp.NewTool("produce_message",
 		mcp.WithDescription("Produce a message to a Kafka topic"),
@@ -331,6 +331,65 @@ func RegisterTools(s *server.MCPServer, kafkaClient *kafka.Client, cfg config.Co
 		}
 
 		// Return JSON as text
+		return mcp.NewToolResultText(string(jsonData)), nil
+	})
+
+	// --- list_topics tool definition and handler ---
+	listTopicsTool := mcp.NewTool("list_topics",
+		mcp.WithDescription("Retrieves all topic names along with partition counts and replication factors."),
+	)
+
+	s.AddTool(listTopicsTool, func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		slog.InfoContext(ctx, "Executing list_topics tool")
+
+		// Call the ListTopics method from the KafkaClient interface
+		topics, err := kafkaClient.ListTopics(ctx)
+		if err != nil {
+			slog.ErrorContext(ctx, "Failed to list topics", "error", err)
+			return mcp.NewToolResultError(fmt.Sprintf("Failed to list topics: %v", err)), nil
+		}
+
+		// For each topic, get additional metadata like partition count and replication factor
+		topicsWithMetadata := make([]map[string]interface{}, 0, len(topics))
+		
+		for _, topicName := range topics {
+			// Get detailed metadata for each topic
+			metadata, err := kafkaClient.DescribeTopic(ctx, topicName)
+			if err != nil {
+				slog.WarnContext(ctx, "Failed to get metadata for topic", "topic", topicName, "error", err)
+				// Continue with the next topic instead of failing entirely
+				topicsWithMetadata = append(topicsWithMetadata, map[string]interface{}{
+					"name":  topicName,
+					"error": err.Error(),
+				})
+				continue
+			}
+			
+			// Calculate partition count and replication factor
+			partitionCount := len(metadata.Partitions)
+			
+			// Find the most common replication factor (assuming it's consistent across partitions)
+			replicationFactor := 0
+			if partitionCount > 0 && len(metadata.Partitions) > 0 {
+				replicationFactor = len(metadata.Partitions[0].Replicas)
+			}
+			
+			topicsWithMetadata = append(topicsWithMetadata, map[string]interface{}{
+				"name":               topicName,
+				"partition_count":    partitionCount,
+				"replication_factor": replicationFactor,
+				"is_internal":        metadata.IsInternal,
+			})
+		}
+
+		// Marshal to JSON
+		jsonData, err := json.Marshal(topicsWithMetadata)
+		if err != nil {
+			slog.ErrorContext(ctx, "Failed to marshal topics to JSON", "error", err)
+			return mcp.NewToolResultError(fmt.Sprintf("Internal error: %v", err)), nil
+		}
+
+		slog.InfoContext(ctx, "Successfully listed topics", "count", len(topics))
 		return mcp.NewToolResultText(string(jsonData)), nil
 	})
 

@@ -11,7 +11,7 @@ import (
 )
 
 // RegisterResources defines and registers MCP resources with the server.
-func RegisterResources(s *server.MCPServer, kafkaClient *kafka.Client) {
+func RegisterResources(s *server.MCPServer, kafkaClient kafka.KafkaClient) {
 	listTopicsResource := mcp.NewResource("list_topics",
 		"List available Kafka topics",
 	)
