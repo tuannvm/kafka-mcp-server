@@ -26,24 +26,24 @@ func RegisterPrompts(s *server.MCPServer, kafkaClient kafka.KafkaClient) {
 	}
 
 	s.AddPrompt(listBrokersPrompt, func(ctx context.Context, req mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
-		var contentText string
+		var content string
 
 		// Get broker list
 		brokers, err := kafkaClient.ListBrokers(ctx)
 		if err != nil {
-			contentText = fmt.Sprintf("⚠️ Error fetching broker information: %s", err.Error())
+			content = fmt.Sprintf("⚠️ Error fetching broker information: %s", err.Error())
 		} else if len(brokers) == 0 {
-			contentText = "No brokers found in the cluster."
+			content = "No brokers found in the cluster."
 		} else {
-			contentText = "KAFKA BROKERS\n\n"
-			contentText += "Broker Address          Status\n"
-			contentText += "-----------------------------\n"
+			content = "KAFKA BROKERS\n\n"
+			content += "Broker Address          Status\n"
+			content += "-----------------------------\n"
 
 			for _, broker := range brokers {
-				contentText += fmt.Sprintf("%-22s ✅ Connected\n", broker)
+				content += fmt.Sprintf("%-22s ✅ Connected\n", broker)
 			}
 
-			contentText += "\n\nSlack Command: /kafka list brokers"
+			content += "\n\nSlack Command: /kafka list brokers"
 		}
 
 		return &mcp.GetPromptResult{
@@ -53,7 +53,7 @@ func RegisterPrompts(s *server.MCPServer, kafkaClient kafka.KafkaClient) {
 					Role: mcp.RoleAssistant,
 					Content: mcp.TextContent{
 						Type: "text",
-						Text: contentText,
+						Text: content,
 					},
 				},
 			},
@@ -68,22 +68,22 @@ func RegisterPrompts(s *server.MCPServer, kafkaClient kafka.KafkaClient) {
 	}
 
 	s.AddPrompt(listTopicsPrompt, func(ctx context.Context, req mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
-		var contentText string
+		var content string
 
 		topics, err := kafkaClient.ListTopics(ctx)
 		if err != nil {
-			contentText = fmt.Sprintf("⚠️ Error fetching topic list: %s", err.Error())
+			content = fmt.Sprintf("⚠️ Error fetching topic list: %s", err.Error())
 		} else if len(topics) == 0 {
-			contentText = "No topics found in the cluster."
+			content = "No topics found in the cluster."
 		} else {
-			contentText = "KAFKA TOPICS\n\n"
-			contentText += "Topic Name\n"
-			contentText += "----------\n"
+			content = "KAFKA TOPICS\n\n"
+			content += "Topic Name\n"
+			content += "----------\n"
 			for _, topic := range topics {
 				// TODO: Enhance to show partition/replication factor by calling DescribeTopic for each? Might be slow.
-				contentText += fmt.Sprintf("%s\n", topic)
+				content += fmt.Sprintf("%s\n", topic)
 			}
-			contentText += "\n\nSlack Command: /kafka list topics"
+			content += "\n\nSlack Command: /kafka list topics"
 		}
 
 		return &mcp.GetPromptResult{
@@ -93,7 +93,7 @@ func RegisterPrompts(s *server.MCPServer, kafkaClient kafka.KafkaClient) {
 					Role: mcp.RoleAssistant,
 					Content: mcp.TextContent{
 						Type: "text",
-						Text: contentText,
+						Text: content,
 					},
 				},
 			},
@@ -115,25 +115,25 @@ func RegisterPrompts(s *server.MCPServer, kafkaClient kafka.KafkaClient) {
 
 	s.AddPrompt(describeTopicPrompt, func(ctx context.Context, req mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
 		topicName := req.Params.Arguments["topic_name"]
-		var contentText string
+		var content string
 
 		metadata, err := kafkaClient.DescribeTopic(ctx, topicName)
 		if err != nil {
-			contentText = fmt.Sprintf("⚠️ Error describing topic '%s': %s", topicName, err.Error())
+			content = fmt.Sprintf("⚠️ Error describing topic '%s': %s", topicName, err.Error())
 		} else {
-			contentText = fmt.Sprintf("TOPIC DETAILS: %s\n\n", topicName)
+			content = fmt.Sprintf("TOPIC DETAILS: %s\n\n", topicName)
 			if metadata.IsInternal {
-				contentText += "Internal Topic: Yes\n\n"
+				content += "Internal Topic: Yes\n\n"
 			}
 
 			// TODO: Fetch and display topic configuration using DescribeConfigs if needed
 
-			contentText += "PARTITIONS\n\n"
+			content += "PARTITIONS\n\n"
 			if len(metadata.Partitions) == 0 {
-				contentText += "No partition information available.\n"
+				content += "No partition information available.\n"
 			} else {
-				contentText += "Partition | Leader | Replicas | In-Sync Replicas | Status\n"
-				contentText += "-----------------------------------------------------\n"
+				content += "Partition | Leader | Replicas | In-Sync Replicas | Status\n"
+				content += "-----------------------------------------------------\n"
 				for _, p := range metadata.Partitions {
 					status := "✅ Healthy"
 					if p.ErrorCode != 0 {
@@ -141,12 +141,12 @@ func RegisterPrompts(s *server.MCPServer, kafkaClient kafka.KafkaClient) {
 					}
 					replicasStr := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(p.Replicas)), ","), "[]")
 					isrStr := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(p.ISR)), ","), "[]")
-					contentText += fmt.Sprintf("%-9d | %-6d | %-8s | %-16s | %s\n", p.PartitionID, p.Leader, replicasStr, isrStr, status)
+					content += fmt.Sprintf("%-9d | %-6d | %-8s | %-16s | %s\n", p.PartitionID, p.Leader, replicasStr, isrStr, status)
 				}
 			}
 
-			contentText += "\n\nSlack Command: "
-			contentText += fmt.Sprintf("/kafka describe topic %s", topicName)
+			content += "\n\nSlack Command: "
+			content += fmt.Sprintf("/kafka describe topic %s", topicName)
 		}
 
 		return &mcp.GetPromptResult{
@@ -156,7 +156,7 @@ func RegisterPrompts(s *server.MCPServer, kafkaClient kafka.KafkaClient) {
 					Role: mcp.RoleAssistant,
 					Content: mcp.TextContent{
 						Type: "text",
-						Text: contentText,
+						Text: content,
 					},
 				},
 			},
@@ -171,45 +171,45 @@ func RegisterPrompts(s *server.MCPServer, kafkaClient kafka.KafkaClient) {
 	}
 
 	s.AddPrompt(clusterOverviewPrompt, func(ctx context.Context, req mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
-		var contentText string
+		var content string
 		overview, err := kafkaClient.GetClusterOverview(ctx)
 
 		if err != nil {
-			contentText = fmt.Sprintf("⚠️ Error fetching cluster overview: %s", err.Error())
+			content = fmt.Sprintf("⚠️ Error fetching cluster overview: %s", err.Error())
 		} else {
-			contentText = "KAFKA CLUSTER OVERVIEW\n\n"
+			content = "KAFKA CLUSTER OVERVIEW\n\n"
 
-			contentText += "CLUSTER SUMMARY\n"
-			contentText += fmt.Sprintf("- Broker Count: %d\n", overview.BrokerCount)
-			contentText += fmt.Sprintf("- Active Controller ID: %d\n", overview.ControllerID) // Note: Need broker host/port for full address
-			contentText += fmt.Sprintf("- Total Topics: %d\n", overview.TopicCount)
-			contentText += fmt.Sprintf("- Total Partitions: %d\n\n", overview.PartitionCount)
+			content += "CLUSTER SUMMARY\n"
+			content += fmt.Sprintf("- Broker Count: %d\n", overview.BrokerCount)
+			content += fmt.Sprintf("- Active Controller ID: %d\n", overview.ControllerID) // Note: Need broker host/port for full address
+			content += fmt.Sprintf("- Total Topics: %d\n", overview.TopicCount)
+			content += fmt.Sprintf("- Total Partitions: %d\n\n", overview.PartitionCount)
 
-			contentText += "HEALTH STATUS\n"
+			content += "HEALTH STATUS\n"
 			urpStatus := "✅"
 			if overview.UnderReplicatedPartitionsCount > 0 {
 				urpStatus = "⚠️"
 			}
-			contentText += fmt.Sprintf("- Under-replicated Partitions: %d %s\n", overview.UnderReplicatedPartitionsCount, urpStatus)
+			content += fmt.Sprintf("- Under-replicated Partitions: %d %s\n", overview.UnderReplicatedPartitionsCount, urpStatus)
 
 			offlineStatus := "✅"
 			if overview.OfflinePartitionsCount > 0 {
 				offlineStatus = "⚠️"
 			}
-			contentText += fmt.Sprintf("- Offline Partitions: %d %s\n", overview.OfflinePartitionsCount, offlineStatus)
+			content += fmt.Sprintf("- Offline Partitions: %d %s\n", overview.OfflinePartitionsCount, offlineStatus)
 
 			controllerStatus := "✅"
 			if overview.ControllerID == -1 {
 				controllerStatus = "⚠️ No Active Controller"
 			}
-			contentText += fmt.Sprintf("- Active Controller: %s\n", controllerStatus)
+			content += fmt.Sprintf("- Active Controller: %s\n", controllerStatus)
 
 			// TODO: Add Consumer Group health summary if needed (requires separate calls)
 
-			contentText += "\nSlack Command: /kafka cluster overview\n\n"
-			contentText += "Related Commands:\n"
-			contentText += "- /kafka health check - For detailed health diagnostics\n"
-			contentText += "- /kafka under-replicated - For listing under-replicated partitions"
+			content += "\nSlack Command: /kafka cluster overview\n\n"
+			content += "Related Commands:\n"
+			content += "- /kafka health check - For detailed health diagnostics\n"
+			content += "- /kafka under-replicated - For listing under-replicated partitions"
 		}
 
 		return &mcp.GetPromptResult{
@@ -219,7 +219,7 @@ func RegisterPrompts(s *server.MCPServer, kafkaClient kafka.KafkaClient) {
 					Role: mcp.RoleAssistant,
 					Content: mcp.TextContent{
 						Type: "text",
-						Text: contentText,
+						Text: content,
 					},
 				},
 			},
@@ -236,28 +236,28 @@ func RegisterPrompts(s *server.MCPServer, kafkaClient kafka.KafkaClient) {
 	}
 
 	s.AddPrompt(listConsumerGroupsPrompt, func(ctx context.Context, req mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
-		var contentText string
+		var content string
 		groups, err := kafkaClient.ListConsumerGroups(ctx)
 
 		if err != nil {
-			contentText = fmt.Sprintf("⚠️ Error fetching consumer group list: %s", err.Error())
+			content = fmt.Sprintf("⚠️ Error fetching consumer group list: %s", err.Error())
 		} else if len(groups) == 0 {
-			contentText = "No consumer groups found in the cluster."
+			content = "No consumer groups found in the cluster."
 		} else {
-			contentText = "KAFKA CONSUMER GROUPS\n\n"
-			contentText += "Consumer Group ID        State\n"
-			contentText += "-------------------------------\n"
+			content = "KAFKA CONSUMER GROUPS\n\n"
+			content += "Consumer Group ID        State\n"
+			content += "-------------------------------\n"
 			for _, group := range groups {
 				status := group.State
 				if group.ErrorCode != 0 {
 					status = fmt.Sprintf("%s (⚠️ Error %d: %s)", group.State, group.ErrorCode, group.ErrorMessage)
 				}
-				contentText += fmt.Sprintf("%-23s %s\n", group.GroupID, status)
+				content += fmt.Sprintf("%-23s %s\n", group.GroupID, status)
 			}
-			contentText += "\n\nSlack Command: /kafka list consumer-groups\n\n"
-			contentText += "Related Commands:\n"
-			contentText += "- /kafka describe consumer-group <group-id> - For details on a specific group\n"
-			contentText += "- /kafka consumer-lag report - For detailed lag information"
+			content += "\n\nSlack Command: /kafka list consumer-groups\n\n"
+			content += "Related Commands:\n"
+			content += "- /kafka describe consumer-group <group-id> - For details on a specific group\n"
+			content += "- /kafka consumer-lag report - For detailed lag information"
 		}
 
 		return &mcp.GetPromptResult{
@@ -267,7 +267,7 @@ func RegisterPrompts(s *server.MCPServer, kafkaClient kafka.KafkaClient) {
 					Role: mcp.RoleAssistant,
 					Content: mcp.TextContent{
 						Type: "text",
-						Text: contentText,
+						Text: content,
 					},
 				},
 			},
@@ -312,38 +312,38 @@ func RegisterPrompts(s *server.MCPServer, kafkaClient kafka.KafkaClient) {
 			brokerList = strings.Join(brokers, ",")
 		}
 
-		contentText := fmt.Sprintf("## Reset Offsets for Consumer Group: %s\n\n", groupID)
+		content := fmt.Sprintf("## Reset Offsets for Consumer Group: %s\n\n", groupID)
 
-		contentText += "### Offset Reset Information\n\n"
-		contentText += fmt.Sprintf("- **Topic:** %s\n", topic)
-		contentText += fmt.Sprintf("- **Target Offset:** %s\n", offset)
-		contentText += "- **Status:** ⚠️ This prompt shows the command to execute the reset.\n\n"
+		content += "### Offset Reset Information\n\n"
+		content += fmt.Sprintf("- **Topic:** %s\n", topic)
+		content += fmt.Sprintf("- **Target Offset:** %s\n", offset)
+		content += "- **Status:** ⚠️ This prompt shows the command to execute the reset.\n\n"
 
-		contentText += "### Command to Execute Reset\n\n"
-		contentText += "```bash\n"
+		content += "### Command to Execute Reset\n\n"
+		content += "```bash\n"
 
 		// Build the proper command based on the offset type
 		if offset == "earliest" || offset == "latest" {
-			contentText += fmt.Sprintf("kafka-consumer-groups --bootstrap-server %s \\\n", brokerList)
-			contentText += fmt.Sprintf("  --group %s --topic %s \\\n", groupID, topic)
-			contentText += fmt.Sprintf("  --reset-offsets --to-%s --execute\n", offset)
+			content += fmt.Sprintf("kafka-consumer-groups --bootstrap-server %s \\\n", brokerList)
+			content += fmt.Sprintf("  --group %s --topic %s \\\n", groupID, topic)
+			content += fmt.Sprintf("  --reset-offsets --to-%s --execute\n", offset)
 		} else {
 			// Assuming offset is a specific number or timestamp format (adjust if needed)
-			contentText += fmt.Sprintf("kafka-consumer-groups --bootstrap-server %s \\\n", brokerList)
-			contentText += fmt.Sprintf("  --group %s --topic %s \\\n", groupID, topic)
+			content += fmt.Sprintf("kafka-consumer-groups --bootstrap-server %s \\\n", brokerList)
+			content += fmt.Sprintf("  --group %s --topic %s \\\n", groupID, topic)
 			// Note: kafka-consumer-groups might use different flags like --to-offset, --to-datetime, etc.
 			// This example assumes --to-offset for simplicity.
-			contentText += fmt.Sprintf("  --reset-offsets --to-offset %s --execute\n", offset)
+			content += fmt.Sprintf("  --reset-offsets --to-offset %s --execute\n", offset)
 		}
-		contentText += "```\n\n"
+		content += "```\n\n"
 
-		contentText += "### ⚠️ Warning\n\n"
-		contentText += "Resetting offsets will change the position from which consumers in this group will read messages.\n"
-		contentText += "- If moving **backward**, messages may be reprocessed.\n"
-		contentText += "- If moving **forward**, messages may be skipped.\n\n"
+		content += "### ⚠️ Warning\n\n"
+		content += "Resetting offsets will change the position from which consumers in this group will read messages.\n"
+		content += "- If moving **backward**, messages may be reprocessed.\n"
+		content += "- If moving **forward**, messages may be skipped.\n\n"
 
-		contentText += "**Slack Command:**\n"
-		contentText += fmt.Sprintf("`/kafka reset offsets %s %s %s`", groupID, topic, offset)
+		content += "**Slack Command:**\n"
+		content += fmt.Sprintf("`/kafka reset offsets %s %s %s`", groupID, topic, offset)
 
 		return &mcp.GetPromptResult{
 			Description: "Kafka Consumer Group Offset Reset Command",
@@ -352,7 +352,7 @@ func RegisterPrompts(s *server.MCPServer, kafkaClient kafka.KafkaClient) {
 					Role: mcp.RoleAssistant,
 					Content: mcp.TextContent{
 						Type: "text",
-						Text: contentText,
+						Text: content,
 					},
 				},
 			},
@@ -418,32 +418,32 @@ func RegisterPrompts(s *server.MCPServer, kafkaClient kafka.KafkaClient) {
 			brokerList = strings.Join(brokers, ",")
 		}
 
-		contentText := fmt.Sprintf("# Create Kafka Topic: %s\n\n", topicName)
+		content := fmt.Sprintf("# Create Kafka Topic: %s\n\n", topicName)
 
-		contentText += "## Topic Configuration\n\n"
-		contentText += fmt.Sprintf("- **Topic Name:** %s\n", topicName)
-		contentText += fmt.Sprintf("- **Partitions:** %s\n", partitions)
-		contentText += fmt.Sprintf("- **Replication Factor:** %s\n", replicationFactor)
-		contentText += fmt.Sprintf("- **Retention:** %s ms\n\n", retentionMs)
+		content += "## Topic Configuration\n\n"
+		content += fmt.Sprintf("- **Topic Name:** %s\n", topicName)
+		content += fmt.Sprintf("- **Partitions:** %s\n", partitions)
+		content += fmt.Sprintf("- **Replication Factor:** %s\n", replicationFactor)
+		content += fmt.Sprintf("- **Retention:** %s ms\n\n", retentionMs)
 
-		contentText += "## Command to Create Topic\n\n"
-		contentText += "```bash\n"
-		contentText += fmt.Sprintf("kafka-topics --bootstrap-server %s \\\n", brokerList)
-		contentText += fmt.Sprintf("  --create --topic %s \\\n", topicName)
-		contentText += fmt.Sprintf("  --partitions %s \\\n", partitions)
-		contentText += fmt.Sprintf("  --replication-factor %s \\\n", replicationFactor)
-		contentText += fmt.Sprintf("  --config retention.ms=%s\n", retentionMs)
+		content += "## Command to Create Topic\n\n"
+		content += "```bash\n"
+		content += fmt.Sprintf("kafka-topics --bootstrap-server %s \\\n", brokerList)
+		content += fmt.Sprintf("  --create --topic %s \\\n", topicName)
+		content += fmt.Sprintf("  --partitions %s \\\n", partitions)
+		content += fmt.Sprintf("  --replication-factor %s \\\n", replicationFactor)
+		content += fmt.Sprintf("  --config retention.ms=%s\n", retentionMs)
 		// TODO: Add other config options if provided
-		contentText += "```\n\n"
+		content += "```\n\n"
 
-		contentText += "## Verify Topic Creation\n\n"
-		contentText += "```bash\n"
-		contentText += fmt.Sprintf("kafka-topics --bootstrap-server %s --describe --topic %s\n", brokerList, topicName)
-		contentText += "```\n\n"
+		content += "## Verify Topic Creation\n\n"
+		content += "```bash\n"
+		content += fmt.Sprintf("kafka-topics --bootstrap-server %s --describe --topic %s\n", brokerList, topicName)
+		content += "```\n\n"
 
-		contentText += "**Slack Command:**\n"
+		content += "**Slack Command:**\n"
 		// Improve Slack command representation if needed
-		contentText += fmt.Sprintf("`/kafka create topic %s partitions=%s replication=%s retention_ms=%s`",
+		content += fmt.Sprintf("`/kafka create topic %s partitions=%s replication=%s retention_ms=%s`",
 			topicName, partitions, replicationFactor, retentionMs)
 
 		return &mcp.GetPromptResult{
@@ -453,7 +453,7 @@ func RegisterPrompts(s *server.MCPServer, kafkaClient kafka.KafkaClient) {
 					Role: mcp.RoleAssistant,
 					Content: mcp.TextContent{
 						Type: "text",
-						Text: contentText,
+						Text: content,
 					},
 				},
 			},
@@ -494,31 +494,31 @@ func RegisterPrompts(s *server.MCPServer, kafkaClient kafka.KafkaClient) {
 
 		// TODO: Optionally, fetch current partition count first to validate the increase
 
-		contentText := fmt.Sprintf("# Increase Partitions for Topic: %s\n\n", topic)
+		content := fmt.Sprintf("# Increase Partitions for Topic: %s\n\n", topic)
 
-		contentText += "## Partition Change Details\n\n"
-		contentText += fmt.Sprintf("- **Topic:** %s\n", topic)
-		contentText += fmt.Sprintf("- **New Partition Count:** %s\n\n", partitions)
+		content += "## Partition Change Details\n\n"
+		content += fmt.Sprintf("- **Topic:** %s\n", topic)
+		content += fmt.Sprintf("- **New Partition Count:** %s\n\n", partitions)
 
-		contentText += "## Command to Increase Partitions\n\n"
-		contentText += "```bash\n"
-		contentText += fmt.Sprintf("kafka-topics --bootstrap-server %s \\\n", brokerList)
-		contentText += fmt.Sprintf("  --alter --topic %s \\\n", topic)
-		contentText += fmt.Sprintf("  --partitions %s\n", partitions)
-		contentText += "```\n\n"
+		content += "## Command to Increase Partitions\n\n"
+		content += "```bash\n"
+		content += fmt.Sprintf("kafka-topics --bootstrap-server %s \\\n", brokerList)
+		content += fmt.Sprintf("  --alter --topic %s \\\n", topic)
+		content += fmt.Sprintf("  --partitions %s\n", partitions)
+		content += "```\n\n"
 
-		contentText += "## Verify Partition Change\n\n"
-		contentText += "```bash\n"
-		contentText += fmt.Sprintf("kafka-topics --bootstrap-server %s --describe --topic %s\n", brokerList, topic)
-		contentText += "```\n\n"
+		content += "## Verify Partition Change\n\n"
+		content += "```bash\n"
+		content += fmt.Sprintf("kafka-topics --bootstrap-server %s --describe --topic %s\n", brokerList, topic)
+		content += "```\n\n"
 
-		contentText += "### ⚠️ Important Notes\n\n"
-		contentText += "1. You can only **increase** the number of partitions (never decrease).\n"
-		contentText += "2. Increasing partitions may affect message ordering guarantees for consumers relying on partition assignment.\n"
-		contentText += "3. Key-based message routing will distribute across the new total number of partitions.\n\n"
+		content += "### ⚠️ Important Notes\n\n"
+		content += "1. You can only **increase** the number of partitions (never decrease).\n"
+		content += "2. Increasing partitions may affect message ordering guarantees for consumers relying on partition assignment.\n"
+		content += "3. Key-based message routing will distribute across the new total number of partitions.\n\n"
 
-		contentText += "**Slack Command:**\n"
-		contentText += fmt.Sprintf("`/kafka increase partitions %s to %s`", topic, partitions)
+		content += "**Slack Command:**\n"
+		content += fmt.Sprintf("`/kafka increase partitions %s to %s`", topic, partitions)
 
 		return &mcp.GetPromptResult{
 			Description: "Kafka Topic Partition Increase Command",
@@ -527,7 +527,7 @@ func RegisterPrompts(s *server.MCPServer, kafkaClient kafka.KafkaClient) {
 					Role: mcp.RoleAssistant,
 					Content: mcp.TextContent{
 						Type: "text",
-						Text: contentText,
+						Text: content,
 					},
 				},
 			},
@@ -577,57 +577,57 @@ func RegisterPrompts(s *server.MCPServer, kafkaClient kafka.KafkaClient) {
 		// Attempt to produce the message using the client
 		produceErr := kafkaClient.ProduceMessage(ctx, topic, []byte(key), []byte(message))
 
-		contentText := fmt.Sprintf("# Produce Message to Topic: %s\n\n", topic)
-		contentText += "## Message Details\n\n"
-		contentText += fmt.Sprintf("- **Topic:** %s\n", topic)
-		contentText += fmt.Sprintf("- **Message:** `%s`\n", message) // Use backticks for clarity
+		content := fmt.Sprintf("# Produce Message to Topic: %s\n\n", topic)
+		content += "## Message Details\n\n"
+		content += fmt.Sprintf("- **Topic:** %s\n", topic)
+		content += fmt.Sprintf("- **Message:** `%s`\n", message) // Use backticks for clarity
 		if hasKey {
-			contentText += fmt.Sprintf("- **Key:** `%s`\n", key)
+			content += fmt.Sprintf("- **Key:** `%s`\n", key)
 		}
 
 		if produceErr != nil {
-			contentText += fmt.Sprintf("- **Status:** ⚠️ Failed to produce message: %s\n\n", produceErr.Error())
+			content += fmt.Sprintf("- **Status:** ⚠️ Failed to produce message: %s\n\n", produceErr.Error())
 		} else {
-			contentText += "- **Status:** ✅ Message produced successfully.\n\n"
+			content += "- **Status:** ✅ Message produced successfully.\n\n"
 		}
 
-		contentText += "## Command Equivalent (using kafka-console-producer)\n\n"
+		content += "## Command Equivalent (using kafka-console-producer)\n\n"
 
 		if !hasKey {
-			contentText += "```bash\n"
+			content += "```bash\n"
 			// Escape single quotes within the message for the echo command
 			escapedMessage := strings.ReplaceAll(message, "'", "'\\''")
-			contentText += fmt.Sprintf("echo '%s' | kafka-console-producer \\\n", escapedMessage)
-			contentText += fmt.Sprintf("  --bootstrap-server %s \\\n", brokerList)
-			contentText += fmt.Sprintf("  --topic %s\n", topic)
-			contentText += "```\n\n"
+			content += fmt.Sprintf("echo '%s' | kafka-console-producer \\\n", escapedMessage)
+			content += fmt.Sprintf("  --bootstrap-server %s \\\n", brokerList)
+			content += fmt.Sprintf("  --topic %s\n", topic)
+			content += "```\n\n"
 		} else {
-			contentText += "```bash\n"
+			content += "```bash\n"
 			// Assumes key and message don't contain the separator ':'
-			contentText += fmt.Sprintf("echo '%s:%s' | kafka-console-producer \\\n", key, message)
-			contentText += fmt.Sprintf("  --bootstrap-server %s \\\n", brokerList)
-			contentText += fmt.Sprintf("  --topic %s \\\n", topic)
-			contentText += fmt.Sprintf("  --property parse.key=true \\\n")
-			contentText += fmt.Sprintf("  --property key.separator=:\n")
-			contentText += "```\n\n"
+			content += fmt.Sprintf("echo '%s:%s' | kafka-console-producer \\\n", key, message)
+			content += fmt.Sprintf("  --bootstrap-server %s \\\n", brokerList)
+			content += fmt.Sprintf("  --topic %s \\\n", topic)
+			content += "  --property parse.key=true \\\n"
+			content += "  --property key.separator=:\n"
+			content += "```\n\n"
 		}
 
-		contentText += "## Verify Message Consumption (Example)\n\n"
-		contentText += "```bash\n"
-		contentText += fmt.Sprintf("kafka-console-consumer \\\n")
-		contentText += fmt.Sprintf("  --bootstrap-server %s \\\n", brokerList)
-		contentText += fmt.Sprintf("  --topic %s \\\n", topic)
-		contentText += fmt.Sprintf("  --from-beginning \\\n") // Or remove for only new messages
-		contentText += fmt.Sprintf("  --max-messages 1 \\\n") // Adjust as needed
-		contentText += fmt.Sprintf("  --property print.key=true \\\n")
-		contentText += fmt.Sprintf("  --property key.separator=:\n")
-		contentText += "```\n\n"
+		content += "## Verify Message Consumption (Example)\n\n"
+		content += "```bash\n"
+		content += "kafka-console-consumer \\\n"
+		content += fmt.Sprintf("  --bootstrap-server %s \\\n", brokerList)
+		content += fmt.Sprintf("  --topic %s \\\n", topic)
+		content += "  --from-beginning \\\n" // Or remove for only new messages
+		content += fmt.Sprintf("  --max-messages 1 \\\n", topic)
+		content += "  --property print.key=true \\\n"
+		content += "  --property key.separator=:\n"
+		content += "```\n\n"
 
 		slackCmd := fmt.Sprintf("`/kafka produce %s \"%s\"`", topic, message)
 		if hasKey {
 			slackCmd = fmt.Sprintf("`/kafka produce %s key=\"%s\" message=\"%s\"`", topic, key, message)
 		}
-		contentText += "**Slack Command:**\n" + slackCmd
+		content += "**Slack Command:**\n" + slackCmd
 
 		return &mcp.GetPromptResult{
 			Description: "Kafka Message Production Result",
@@ -636,7 +636,7 @@ func RegisterPrompts(s *server.MCPServer, kafkaClient kafka.KafkaClient) {
 					Role: mcp.RoleAssistant,
 					Content: mcp.TextContent{
 						Type: "text",
-						Text: contentText,
+						Text: content,
 					},
 				},
 			},
@@ -710,21 +710,20 @@ func RegisterPrompts(s *server.MCPServer, kafkaClient kafka.KafkaClient) {
 		// Attempt to consume messages
 		consumedMessages, consumeErr := kafkaClient.ConsumeMessages(ctx, []string{topic}, maxMessages)
 
-		contentText := fmt.Sprintf("# Consume Messages from Topic: %s\n\n", topic)
-		contentText += "## Consumption Details\n\n"
-		contentText += fmt.Sprintf("- **Topic:** %s\n", topic)
-		contentText += fmt.Sprintf("- **Max Messages Requested:** %d\n", maxMessages)
-		// contentText += fmt.Sprintf("- **From Beginning:** %v (Note: Consuming from current group offset)\n", fromBeginning)
+		content := fmt.Sprintf("# Consume Messages from Topic: %s\n\n", topic)
+		content += "## Consumption Details\n\n"
+		content += fmt.Sprintf("- **Topic:** %s\n", topic)
+		content += fmt.Sprintf("- **Max Messages Requested:** %d\n", maxMessages)
 
 		if consumeErr != nil {
-			contentText += fmt.Sprintf("- **Status:** ⚠️ Error consuming messages: %s\n\n", consumeErr.Error())
+			content += fmt.Sprintf("- **Status:** ⚠️ Error consuming messages: %s\n\n", consumeErr.Error())
 		} else if len(consumedMessages) == 0 {
-			contentText += "- **Status:** ✅ Consumed 0 messages (or timed out waiting).\n\n"
+			content += "- **Status:** ✅ Consumed 0 messages (or timed out waiting).\n\n"
 		} else {
-			contentText += fmt.Sprintf("- **Status:** ✅ Consumed %d message(s).\n\n", len(consumedMessages))
-			contentText += "### Consumed Messages\n\n"
-			contentText += "| Partition | Offset | Key | Value | Timestamp (ms) |\n"
-			contentText += "|-----------|--------|-----|-------|----------------|\n"
+			content += fmt.Sprintf("- **Status:** ✅ Consumed %d message(s).\n\n", len(consumedMessages))
+			content += "### Consumed Messages\n\n"
+			content += "| Partition | Offset | Key | Value | Timestamp (ms) |\n"
+			content += "|-----------|--------|-----|-------|----------------|\n"
 			for _, msg := range consumedMessages {
 				// Truncate long values for display
 				displayValue := msg.Value
@@ -735,32 +734,27 @@ func RegisterPrompts(s *server.MCPServer, kafkaClient kafka.KafkaClient) {
 				if len(displayKey) > 50 {
 					displayKey = displayKey[:50] + "..."
 				}
-				contentText += fmt.Sprintf("| %d | %d | `%s` | `%s` | %d |\n", msg.Partition, msg.Offset, displayKey, displayValue, msg.Timestamp)
+				content += fmt.Sprintf("| %d | %d | `%s` | `%s` | %d |\n", msg.Partition, msg.Offset, displayKey, displayValue, msg.Timestamp)
 			}
-			contentText += "\n"
+			content += "\n"
 		}
 
-		contentText += "## Command Equivalent (using kafka-console-consumer)\n\n"
-		contentText += "```bash\n"
-		contentText += fmt.Sprintf("kafka-console-consumer \\\n")
-		contentText += fmt.Sprintf("  --bootstrap-server %s \\\n", brokerList)
-		contentText += fmt.Sprintf("  --topic %s \\\n", topic)
-		// Add --group if you want to consume as part of a specific group (otherwise random group is used)
-		// contentText += fmt.Sprintf("  --group my-cli-consumer-group \\\n")
+		content += "## Command Equivalent (using kafka-console-consumer)\n\n"
+		content += "```bash\n"
+		content += "kafka-console-consumer \\\n"
+		content += fmt.Sprintf("  --bootstrap-server %s \\\n", brokerList)
+		content += fmt.Sprintf("  --topic %s \\\n", topic)
 		if fromBeginning {
-			contentText += fmt.Sprintf("  --from-beginning \\\n")
+			content += "  --from-beginning \\\n"
 		}
-		contentText += fmt.Sprintf("  --max-messages %d \\\n", maxMessages)
-		contentText += fmt.Sprintf("  --property print.key=true \\\n") // Example: show keys
-		contentText += fmt.Sprintf("  --property key.separator=:\n")
-		contentText += "```\n\n"
+		content += fmt.Sprintf("  --max-messages %d \\\n", maxMessages)
+		content += "  --property print.key=true \\\n"
+		content += "  --property key.separator=:\n"
+		content += "```\n\n"
 
-		contentText += "**Slack Command:**\n"
+		content += "**Slack Command:**\n"
 		slackCmd := fmt.Sprintf("`/kafka consume %s count=%d`", topic, maxMessages)
-		// if fromBeginning {
-		// 	slackCmd += " from_beginning=true"
-		// }
-		contentText += slackCmd
+		content += slackCmd
 
 		return &mcp.GetPromptResult{
 			Description: "Kafka Message Consumption Result",
@@ -769,7 +763,7 @@ func RegisterPrompts(s *server.MCPServer, kafkaClient kafka.KafkaClient) {
 					Role: mcp.RoleAssistant,
 					Content: mcp.TextContent{
 						Type: "text",
-						Text: contentText,
+						Text: content,
 					},
 				},
 			},
@@ -786,19 +780,19 @@ func RegisterPrompts(s *server.MCPServer, kafkaClient kafka.KafkaClient) {
 	}
 
 	s.AddPrompt(healthCheckPrompt, func(ctx context.Context, req mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
-		var contentText string
+		var content string
 		overview, overviewErr := kafkaClient.GetClusterOverview(ctx)
 		// TODO: Potentially add calls to ListBrokers, ListConsumerGroups for more detail
 
-		contentText = "# Kafka Cluster Health Check\n\n"
+		content = "# Kafka Cluster Health Check\n\n"
 
 		if overviewErr != nil {
-			contentText += fmt.Sprintf("⚠️ Error fetching cluster overview: %s\n\n", overviewErr.Error())
+			content += fmt.Sprintf("⚠️ Error fetching cluster overview: %s\n\n", overviewErr.Error())
 			// Still show command equivalents if possible
 		} else {
-			contentText += "## Health Summary (Based on Overview)\n\n"
-			contentText += "| Component | Status | Details |\n"
-			contentText += "|-----------|--------|---------|\n"
+			content += "## Health Summary (Based on Overview)\n\n"
+			content += "| Component | Status | Details |\n"
+			content += "|-----------|--------|---------|\n"
 
 			// Broker Status (basic count)
 			brokerStatus := "✅ Available"
@@ -810,7 +804,7 @@ func RegisterPrompts(s *server.MCPServer, kafkaClient kafka.KafkaClient) {
 				brokerStatus = "⚠️ No Brokers Found"
 				brokerDetails = "Could not connect or no brokers available"
 			}
-			contentText += fmt.Sprintf("| Brokers | %s | %s |\n", brokerStatus, brokerDetails)
+			content += fmt.Sprintf("| Brokers | %s | %s |\n", brokerStatus, brokerDetails)
 
 			// Controller Status
 			controllerStatus := "✅ Active"
@@ -819,7 +813,7 @@ func RegisterPrompts(s *server.MCPServer, kafkaClient kafka.KafkaClient) {
 				controllerStatus = "⚠️ Inactive"
 				controllerDetails = "No active controller found"
 			}
-			contentText += fmt.Sprintf("| Controller | %s | %s |\n", controllerStatus, controllerDetails)
+			content += fmt.Sprintf("| Controller | %s | %s |\n", controllerStatus, controllerDetails)
 
 			// Partition Health
 			partitionStatus := "✅ Healthy"
@@ -827,11 +821,11 @@ func RegisterPrompts(s *server.MCPServer, kafkaClient kafka.KafkaClient) {
 			if overview.UnderReplicatedPartitionsCount > 0 || overview.OfflinePartitionsCount > 0 {
 				partitionStatus = "⚠️ Issues Found"
 			}
-			contentText += fmt.Sprintf("| Partitions | %s | %s |\n", partitionStatus, partitionDetails)
+			content += fmt.Sprintf("| Partitions | %s | %s |\n", partitionStatus, partitionDetails)
 
 			// TODO: Add Consumer Group health summary (requires ListConsumerGroups/DescribeConsumerGroup calls)
-			contentText += "| Consumer Groups | ? Unknown | Requires separate check (`/kafka consumer-lag report`) |\n"
-			contentText += "\n"
+			content += "| Consumer Groups | ? Unknown | Requires separate check (`/kafka consumer-lag report`) |\n"
+			content += "\n"
 		}
 
 		// Get broker list for command examples
@@ -844,25 +838,22 @@ func RegisterPrompts(s *server.MCPServer, kafkaClient kafka.KafkaClient) {
 			brokerList = strings.Join(brokers, ",")
 		}
 
-		contentText += "## Health Check Commands (Examples)\n\n"
-		contentText += "```bash\n"
-		contentText += "# Check under-replicated partitions\n"
-		contentText += fmt.Sprintf("kafka-topics --bootstrap-server %s --describe --under-replicated-partitions\n\n", brokerList)
-		contentText += "# Check unavailable partitions\n"
-		contentText += fmt.Sprintf("kafka-topics --bootstrap-server %s --describe --unavailable-partitions\n\n", brokerList)
-		contentText += "# Check broker API versions (basic connectivity check)\n"
-		contentText += fmt.Sprintf("kafka-broker-api-versions --bootstrap-server %s\n\n", brokerList)
-		contentText += "# Check consumer group lag (all groups)\n"
-		contentText += fmt.Sprintf("kafka-consumer-groups --bootstrap-server %s --all-groups --describe\n", brokerList)
-		// Add Zookeeper check if relevant
-		// contentText += "# Check Zookeeper status (if applicable)\n"
-		// contentText += "echo ruok | nc [zookeeper_host]:2181\n"
-		contentText += "```\n\n"
+		content += "## Health Check Commands (Examples)\n\n"
+		content += "```bash\n"
+		content += "# Check under-replicated partitions\n"
+		content += fmt.Sprintf("kafka-topics --bootstrap-server %s --describe --under-replicated-partitions\n\n", brokerList)
+		content += "# Check unavailable partitions\n"
+		content += fmt.Sprintf("kafka-topics --bootstrap-server %s --describe --unavailable-partitions\n\n", brokerList)
+		content += "# Check broker API versions (basic connectivity check)\n"
+		content += fmt.Sprintf("kafka-broker-api-versions --bootstrap-server %s\n\n", brokerList)
+		content += "# Check consumer group lag (all groups)\n"
+		content += fmt.Sprintf("kafka-consumer-groups --bootstrap-server %s --all-groups --describe\n", brokerList)
+		content += "```\n\n"
 
-		contentText += "**Slack Command:**\n`/kafka health check`\n\n"
-		contentText += "**Related Commands:**\n"
-		contentText += "- `/kafka under-replicated` - For detailed under-replicated partition info\n"
-		contentText += "- `/kafka consumer-lag report` - For detailed consumer lag analysis"
+		content += "**Slack Command:**\n`/kafka health check`\n\n"
+		content += "**Related Commands:**\n"
+		content += "- `/kafka under-replicated` - For detailed under-replicated partition info\n"
+		content += "- `/kafka consumer-lag report` - For detailed consumer lag analysis"
 
 		return &mcp.GetPromptResult{
 			Description: "Kafka Cluster Health Check Results",
@@ -871,7 +862,7 @@ func RegisterPrompts(s *server.MCPServer, kafkaClient kafka.KafkaClient) {
 					Role: mcp.RoleAssistant,
 					Content: mcp.TextContent{
 						Type: "text",
-						Text: contentText,
+						Text: content,
 					},
 				},
 			},
@@ -886,21 +877,21 @@ func RegisterPrompts(s *server.MCPServer, kafkaClient kafka.KafkaClient) {
 	}
 
 	s.AddPrompt(underReplicatedPrompt, func(ctx context.Context, req mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
-		var contentText string
+		var content string
 		overview, overviewErr := kafkaClient.GetClusterOverview(ctx)
 		// For more detail, would need to call DescribeTopics on topics identified as having URPs
 
-		contentText = "# Under-Replicated Kafka Partitions\n\n"
+		content = "# Under-Replicated Kafka Partitions\n\n"
 
 		if overviewErr != nil {
-			contentText += fmt.Sprintf("⚠️ Error fetching cluster overview: %s\n\n", overviewErr.Error())
+			content += fmt.Sprintf("⚠️ Error fetching cluster overview: %s\n\n", overviewErr.Error())
 		} else {
-			contentText += "## Status Summary\n\n"
+			content += "## Status Summary\n\n"
 			if overview.UnderReplicatedPartitionsCount == 0 {
-				contentText += "No under-replicated partitions found in the cluster. ✅\n\n"
+				content += "No under-replicated partitions found in the cluster. ✅\n\n"
 			} else {
-				contentText += fmt.Sprintf("⚠️ Found %d under-replicated partition(s).\n\n", overview.UnderReplicatedPartitionsCount)
-				contentText += "**Note:** Use the command below or `/kafka describe topic <topic_name>` for specific partition details.\n\n"
+				content += fmt.Sprintf("⚠️ Found %d under-replicated partition(s).\n\n", overview.UnderReplicatedPartitionsCount)
+				content += "**Note:** Use the command below or `/kafka describe topic <topic_name>` for specific partition details.\n\n"
 				// TODO: If feasible, list topics with URPs by iterating through DescribeTopic results (could be slow)
 			}
 		}
@@ -915,26 +906,26 @@ func RegisterPrompts(s *server.MCPServer, kafkaClient kafka.KafkaClient) {
 			brokerList = strings.Join(brokers, ",")
 		}
 
-		contentText += "## Command to Check Under-Replicated Partitions\n\n"
-		contentText += "```bash\n"
-		contentText += fmt.Sprintf("kafka-topics --bootstrap-server %s --describe --under-replicated-partitions\n", brokerList)
-		contentText += "```\n\n"
+		content += "## Command to Check Under-Replicated Partitions\n\n"
+		content += "```bash\n"
+		content += fmt.Sprintf("kafka-topics --bootstrap-server %s --describe --under-replicated-partitions\n", brokerList)
+		content += "```\n\n"
 
-		contentText += "## Common Causes for Under-Replication\n\n"
-		contentText += "1. **Broker Failure:** A broker hosting a replica is down or unreachable.\n"
-		contentText += "2. **Network Issues:** Connectivity problems between brokers prevent replication.\n"
-		contentText += "3. **Disk Full:** A broker's disk is full and cannot accept new replica data.\n"
-		contentText += "4. **High Load:** Brokers are too busy to keep up with replication demands.\n"
-		contentText += "5. **Configuration:** `min.insync.replicas` might be set higher than available ISRs.\n\n"
+		content += "## Common Causes for Under-Replication\n\n"
+		content += "1. **Broker Failure:** A broker hosting a replica is down or unreachable.\n"
+		content += "2. **Network Issues:** Connectivity problems between brokers prevent replication.\n"
+		content += "3. **Disk Full:** A broker's disk is full and cannot accept new replica data.\n"
+		content += "4. **High Load:** Brokers are too busy to keep up with replication demands.\n"
+		content += "5. **Configuration:** `min.insync.replicas` might be set higher than available ISRs.\n\n"
 
-		contentText += "## Diagnostic Steps\n\n"
-		contentText += "- Check broker status and logs (`/kafka list brokers`, check server.log).\n"
-		contentText += "- Verify network connectivity between brokers (`ping`, `traceroute`).\n"
-		contentText += "- Monitor disk usage on all brokers (`df -h`).\n"
-		contentText += "- Check broker CPU/Memory/Network utilization.\n"
-		contentText += "- Review topic configuration (`/kafka describe topic <topic_name>`).\n\n"
+		content += "## Diagnostic Steps\n\n"
+		content += "- Check broker status and logs (`/kafka list brokers`, check server.log).\n"
+		content += "- Verify network connectivity between brokers (`ping`, `traceroute`).\n"
+		content += "- Monitor disk usage on all brokers (`df -h`).\n"
+		content += "- Check broker CPU/Memory/Network utilization.\n"
+		content += "- Review topic configuration (`/kafka describe topic <topic_name>`).\n\n"
 
-		contentText += "**Slack Command:**\n`/kafka under-replicated`"
+		content += "**Slack Command:**\n`/kafka under-replicated`"
 
 		return &mcp.GetPromptResult{
 			Description: "Kafka Under-Replicated Partitions Report",
@@ -943,7 +934,7 @@ func RegisterPrompts(s *server.MCPServer, kafkaClient kafka.KafkaClient) {
 					Role: mcp.RoleAssistant,
 					Content: mcp.TextContent{
 						Type: "text",
-						Text: contentText,
+						Text: content,
 					},
 				},
 			},
@@ -979,15 +970,15 @@ func RegisterPrompts(s *server.MCPServer, kafkaClient kafka.KafkaClient) {
 			lagThreshold = 0 // Threshold cannot be negative
 		}
 
-		var contentText string
+		var content string
 		groups, listErr := kafkaClient.ListConsumerGroups(ctx)
 
-		contentText = "# Kafka Consumer Lag Report\n\n"
+		content = "# Kafka Consumer Lag Report\n\n"
 
 		if listErr != nil {
-			contentText += fmt.Sprintf("⚠️ Error listing consumer groups: %s\n\n", listErr.Error())
+			content += fmt.Sprintf("⚠️ Error listing consumer groups: %s\n\n", listErr.Error())
 		} else if len(groups) == 0 {
-			contentText += "No consumer groups found.\n\n"
+			content += "No consumer groups found.\n\n"
 		} else {
 			highLagDetails := ""
 			allGroupsSummary := "| Consumer Group | Total Lag | Status |\n"
@@ -1031,19 +1022,19 @@ func RegisterPrompts(s *server.MCPServer, kafkaClient kafka.KafkaClient) {
 				allGroupsSummary += fmt.Sprintf("| %s | %d | %s |\n", groupInfo.GroupID, totalLag, groupStatus)
 			}
 
-			contentText += fmt.Sprintf("## Consumer Groups Exceeding Lag Threshold (> %d messages)\n\n", lagThreshold)
+			content += fmt.Sprintf("## Consumer Groups Exceeding Lag Threshold (> %d messages)\n\n", lagThreshold)
 			if groupsWithHighLag == 0 {
-				contentText += "No consumer groups found exceeding the lag threshold. ✅\n\n"
+				content += "No consumer groups found exceeding the lag threshold. ✅\n\n"
 			} else {
-				contentText += "| Consumer Group | Topic | Partition | Current Offset | Log End Offset (Approx) | Lag |\n"
-				contentText += "|----------------|-------|-----------|----------------|-------------------------|-----|\n"
-				contentText += highLagDetails
-				contentText += "\n"
+				content += "| Consumer Group | Topic | Partition | Current Offset | Log End Offset (Approx) | Lag |\n"
+				content += "|----------------|-------|-----------|----------------|-------------------------|-----|\n"
+				content += highLagDetails
+				content += "\n"
 			}
 
-			contentText += "## All Consumer Groups Summary\n\n"
-			contentText += allGroupsSummary
-			contentText += "\n"
+			content += "## All Consumer Groups Summary\n\n"
+			content += allGroupsSummary
+			content += "\n"
 		}
 
 		// Get broker list for command examples
@@ -1056,23 +1047,23 @@ func RegisterPrompts(s *server.MCPServer, kafkaClient kafka.KafkaClient) {
 			brokerList = strings.Join(brokers, ",")
 		}
 
-		contentText += "## Command to Check Consumer Lag\n\n"
-		contentText += "```bash\n"
-		contentText += "# Describe a specific group (includes lag)\n"
-		contentText += fmt.Sprintf("kafka-consumer-groups --bootstrap-server %s --describe --group [group-id]\n\n", brokerList)
-		contentText += "# Describe all groups (can be verbose)\n"
-		contentText += fmt.Sprintf("kafka-consumer-groups --bootstrap-server %s --describe --all-groups\n", brokerList)
-		contentText += "```\n\n"
+		content += "## Command to Check Consumer Lag\n\n"
+		content += "```bash\n"
+		content += "# Describe a specific group (includes lag)\n"
+		content += fmt.Sprintf("kafka-consumer-groups --bootstrap-server %s --describe --group [group-id]\n\n", brokerList)
+		content += "# Describe all groups (can be verbose)\n"
+		content += fmt.Sprintf("kafka-consumer-groups --bootstrap-server %s --describe --all-groups\n", brokerList)
+		content += "```\n\n"
 
-		contentText += "## Addressing High Consumer Lag\n\n"
-		contentText += "1. **Scale Consumers**: Increase the number of consumer instances (up to the number of partitions).\n"
-		contentText += "2. **Optimize Processing**: Profile and improve consumer application logic.\n"
-		contentText += "3. **Check Resources**: Ensure consumers have sufficient CPU, memory, and network bandwidth.\n"
-		contentText += "4. **Increase Partitions**: If consumers are maxed out, consider increasing topic partitions (requires careful planning).\n"
-		contentText += "5. **Tune Consumer Config**: Adjust `fetch.min.bytes`, `fetch.max.wait.ms`, `max.poll.records`.\n\n"
+		content += "## Addressing High Consumer Lag\n\n"
+		content += "1. **Scale Consumers**: Increase the number of consumer instances (up to the number of partitions).\n"
+		content += "2. **Optimize Processing**: Profile and improve consumer application logic.\n"
+		content += "3. **Check Resources**: Ensure consumers have sufficient CPU, memory, and network bandwidth.\n"
+		content += "4. **Increase Partitions**: If consumers are maxed out, consider increasing topic partitions (requires careful planning).\n"
+		content += "5. **Tune Consumer Config**: Adjust `fetch.min.bytes`, `fetch.max.wait.ms`, `max.poll.records`.\n\n"
 
-		contentText += "**Slack Command:**\n"
-		contentText += fmt.Sprintf("`/kafka consumer-lag report threshold=%d`", lagThreshold)
+		content += "**Slack Command:**\n"
+		content += fmt.Sprintf("`/kafka consumer-lag report threshold=%d`", lagThreshold)
 
 		return &mcp.GetPromptResult{
 			Description: "Kafka Consumer Lag Analysis",
@@ -1081,7 +1072,7 @@ func RegisterPrompts(s *server.MCPServer, kafkaClient kafka.KafkaClient) {
 					Role: mcp.RoleAssistant,
 					Content: mcp.TextContent{
 						Type: "text",
-						Text: contentText,
+						Text: content,
 					},
 				},
 			},
@@ -1127,7 +1118,7 @@ func RegisterPrompts(s *server.MCPServer, kafkaClient kafka.KafkaClient) {
 		}
 
 		// Build content
-		contentText := fmt.Sprintf("# Monitor Kafka Consumer Group: %s\n\n", groupID)
+		content := fmt.Sprintf("# Monitor Kafka Consumer Group: %s\n\n", groupID)
 
 		// Optionally fetch group description for current status
 		var groupState, memberCountStr string
@@ -1143,57 +1134,54 @@ func RegisterPrompts(s *server.MCPServer, kafkaClient kafka.KafkaClient) {
 			groupState = descResult.State
 			memberCountStr = fmt.Sprintf("%d", len(descResult.Members))
 		}
-		contentText += fmt.Sprintf("## Current Status\n\n- **State:** %s\n- **Active Members:** %s\n\n", groupState, memberCountStr)
+		content += fmt.Sprintf("## Current Status\n\n- **State:** %s\n- **Active Members:** %s\n\n", groupState, memberCountStr)
 
-		contentText += "## Basic Status Commands\n\n"
+		content += "## Basic Status Commands\n\n"
 
-		contentText += "### Describe Consumer Group (Includes State, Members, Assignments)\n"
-		contentText += "```bash\n"
-		contentText += fmt.Sprintf("kafka-consumer-groups --bootstrap-server %s \\\n", brokerList)
-		contentText += fmt.Sprintf("  --describe --group %s\n", groupID)
-		contentText += "```\n\n"
+		content += "### Describe Consumer Group (Includes State, Members, Assignments)\n"
+		content += "```bash\n"
+		content += fmt.Sprintf("kafka-consumer-groups --bootstrap-server %s \\\n", brokerList)
+		content += fmt.Sprintf("  --describe --group %s\n", groupID)
+		content += "```\n\n"
 
 		// The --state and --members flags are often redundant if --describe is used, but kept for explicitness
-		contentText += "### Check Current State Only\n"
-		contentText += "```bash\n"
-		contentText += fmt.Sprintf("kafka-consumer-groups --bootstrap-server %s \\\n", brokerList)
-		contentText += fmt.Sprintf("  --describe --group %s --state\n", groupID)
-		contentText += "```\n\n"
+		content += "### Check Current State Only\n"
+		content += "```bash\n"
+		content += fmt.Sprintf("kafka-consumer-groups --bootstrap-server %s \\\n", brokerList)
+		content += fmt.Sprintf("  --describe --group %s --state\n", groupID)
+		content += "```\n\n"
 
-		contentText += "### Show Members in the Group Only\n"
-		contentText += "```bash\n"
-		contentText += fmt.Sprintf("kafka-consumer-groups --bootstrap-server %s \\\n", brokerList)
-		contentText += fmt.Sprintf("  --describe --group %s --members\n", groupID)
-		contentText += "```\n\n"
+		content += "### Show Members in the Group Only\n"
+		content += "```bash\n"
+		content += fmt.Sprintf("kafka-consumer-groups --bootstrap-server %s \\\n", brokerList)
+		content += fmt.Sprintf("  --describe --group %s --members\n", groupID)
+		content += "```\n\n"
 
 		if includeLagCommands {
-			contentText += "## Monitor Consumer Lag\n\n"
-			contentText += "The `--describe` command shown above also includes lag information per partition.\n\n"
-			contentText += "```bash\n"
-			contentText += "# Example focusing on lag output interpretation\n"
-			contentText += fmt.Sprintf("kafka-consumer-groups --bootstrap-server %s --describe --group %s\n", brokerList, groupID)
-			contentText += "# Look for columns: CURRENT-OFFSET, LOG-END-OFFSET, LAG\n"
-			contentText += "```\n\n"
-			contentText += "Alternatively, use the dedicated lag report prompt:\n"
-			contentText += "`/kafka consumer-lag report`\n\n"
+			content += "## Monitor Consumer Lag\n\n"
+			content += "The `--describe` command shown above also includes lag information per partition.\n\n"
+			content += "```bash\n"
+			content += "# Example focusing on lag output interpretation\n"
+			content += fmt.Sprintf("kafka-consumer-groups --bootstrap-server %s --describe --group %s\n", brokerList, groupID)
+			content += "# Look for columns: CURRENT-OFFSET, LOG-END-OFFSET, LAG\n"
+			content += "```\n\n"
+			content += "Alternatively, use the dedicated lag report prompt:\n"
+			content += "`/kafka consumer-lag report`\n\n"
 		}
 
-		contentText += "## Troubleshooting Tips\n\n"
-		contentText += fmt.Sprintf("1. **Group State Issues** (e.g., stuck in `PreparingRebalance`):\n")
-		contentText += "   - Check consumer logs for errors or long processing times (`max.poll.interval.ms`).\n"
-		contentText += "   - Verify network connectivity between consumers and brokers.\n"
-		contentText += "   - Ensure `session.timeout.ms` and `heartbeat.interval.ms` are appropriate.\n\n"
-
-		contentText += "2. **Growing Lag**:\n"
-		contentText += "   - Use `/kafka consumer-lag report` to identify lagging partitions.\n"
-		contentText += "   - Check if consumer processing is slow or blocked.\n"
-		contentText += "   - Monitor consumer resource usage (CPU, Memory).\n"
-		contentText += "   - Consider scaling consumers if processing is the bottleneck and partitions allow.\n\n"
-
-		contentText += "3. **No Members / Group `Dead` or `Empty`**:\n"
-		contentText += "   - Ensure consumer applications with this `group.id` are running.\n"
-		contentText += "   - Check consumer logs for connection or authentication errors.\n"
-		contentText += "   - Verify the group hasn't been inactive longer than broker retention periods.\n\n"
+		content += "## Troubleshooting Tips\n\n"
+		content += "## Common Issues\n\n"
+		content += "1. Group State Issues (e.g., stuck in `PreparingRebalance`):\n"
+		content += "   - Check consumer logs for errors or long processing times (`max.poll.interval.ms`).\n"
+		content += "   - Verify network connectivity between consumers and brokers.\n"
+		content += "   - Ensure `session.timeout.ms` and `heartbeat.interval.ms` are appropriate.\n\n"
+		content += "2. Growing Lag:\n"
+		content += "   - Check if consumers can keep up with producer throughput.\n"
+		content += "   - Consider increasing consumer parallelism (more consumers/partitions).\n"
+		content += "   - Look for bottlenecks in consumer processing.\n\n"
+		content += "3. Empty Consumer Groups:\n"
+		content += "   - Verify consumer application is running and healthy.\n"
+		content += "   - Check for connectivity issues or authentication failures.\n\n"
 
 		result := &mcp.GetPromptResult{
 			Description: "Kafka Consumer Group Monitoring Guide",
@@ -1202,7 +1190,7 @@ func RegisterPrompts(s *server.MCPServer, kafkaClient kafka.KafkaClient) {
 					Role: mcp.RoleAssistant,
 					Content: mcp.TextContent{
 						Type: "text",
-						Text: contentText,
+						Text: content,
 					},
 				},
 			},
@@ -1256,9 +1244,9 @@ func RegisterPrompts(s *server.MCPServer, kafkaClient kafka.KafkaClient) {
 
 		// Use cases.Title for proper title casing
 		titleCaser := cases.Title(language.English)
-		contentText := fmt.Sprintf("# Kafka Troubleshooting Guide: %s\n\n", titleCaser.String(issueType))
-		contentText += contentSection + "\n\n"
-		contentText += buildCommonTroubleshootingSection() // This one doesn't need brokerList
+		content := fmt.Sprintf("# Kafka Troubleshooting Guide: %s\n\n", titleCaser.String(issueType))
+		content += contentSection + "\n\n"
+		content += buildCommonTroubleshootingSection() // This one doesn't need brokerList
 
 		result := &mcp.GetPromptResult{
 			Description: "Kafka Troubleshooting Guide",
@@ -1267,13 +1255,43 @@ func RegisterPrompts(s *server.MCPServer, kafkaClient kafka.KafkaClient) {
 					Role: mcp.RoleAssistant,
 					Content: mcp.TextContent{
 						Type: "text",
-						Text: contentText,
+						Text: content,
 					},
 				},
 			},
 		}
 
 		return result, nil
+	})
+
+	// Helper function to build the troubleshooting options prompt
+	troubleshootOptionsPrompt := mcp.Prompt{
+		Name:        "kafka_troubleshoot_options",
+		Description: "Lists troubleshooting options for Kafka issues",
+		Arguments:   []mcp.PromptArgument{},
+	}
+
+	s.AddPrompt(troubleshootOptionsPrompt, func(ctx context.Context, req mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
+		content := "# Kafka Troubleshooting Options\n\n"
+		content += "What area would you like help troubleshooting?\n\n"
+		content += "- **Producers**: `/kafka troubleshoot issue_type=producer`\n"
+		content += "- **Consumers**: `/kafka troubleshoot issue_type=consumer`\n"
+		content += "- **Brokers**: `/kafka troubleshoot issue_type=broker`\n"
+		content += "- **General Issues**: `/kafka troubleshoot issue_type=general`\n\n"
+		content += "For consumer lag specifically: `/kafka consumer-lag report`\n"
+
+		return &mcp.GetPromptResult{
+			Description: "Kafka Troubleshooting Options",
+			Messages: []mcp.PromptMessage{
+				{
+					Role: mcp.RoleAssistant,
+					Content: mcp.TextContent{
+						Type: "text",
+						Text: content,
+					},
+				},
+			},
+		}, nil
 	})
 }
 
@@ -1416,52 +1434,40 @@ func buildGeneralTroubleshootingContent(brokerList string) string {
 	content += fmt.Sprintf("kafka-topics --bootstrap-server %s --describe --under-replicated-partitions\n", brokerList)
 	content += "```\n\n"
 
-	content += "### Common Issues and Solutions\n\n"
-	content += "1. **Topic Creation Failures**\n"
-	content += "   - Check broker logs for errors\n"
-	content += "   - Verify ZooKeeper connectivity (if used)\n"
-	content += "   - Ensure auto.create.topics.enable is set correctly\n\n"
-
-	content += "2. **Performance Issues**\n"
-	content += "   - Check disk I/O on broker machines\n"
-	content += "   - Monitor network bandwidth between brokers\n"
-	content += "   - Review producer and consumer client configurations\n\n"
-
-	content += "3. **Connection Issues**\n"
-	content += "   - Verify security configurations (SASL, SSL)\n"
-	content += "   - Check network firewall rules\n"
-	// content += "   - Ensure advertised.listeners is configured correctly\n\n"
-
-	content += "### General Best Practices\n\n"
-	content += "- Always use multiple brokers in production (at least 3)\n"
-	content += "- Monitor disk space regularly\n"
-	content += "- Configure appropriate log retention settings\n"
-	content += "- Maintain proper backups of configuration and data\n"
-	content += "- Upgrade Kafka in a controlled, staged manner\n"
-
 	return content
 }
 
 func buildCommonTroubleshootingSection() string {
-	content := "## Diagnostics and Data Collection\n\n"
-	content += "When troubleshooting Kafka issues, collect the following information:\n\n"
-	content += "1. Kafka and ZooKeeper versions\n"
-	content += "2. Cluster topology and configuration (`server.properties`)\n"
-	content += "3. Client configurations (producer, consumer)\n"
-	content += "4. Exact error messages and timestamps\n"
-	content += "5. Relevant logs (broker, client, ZK if applicable)\n"
-	content += "6. Performance metrics around the time of the issue\n\n"
+	content := "## Common Troubleshooting Tips for All Kafka Components\n\n"
 
-	content += "## Useful Metrics to Monitor (via JMX or monitoring tools)\n\n"
-	content += "- **Broker:** UnderReplicatedPartitions, OfflinePartitionsCount, ActiveControllerCount, RequestQueueSize, NetworkProcessorAvgIdlePercent, LeaderElectionRateAndTimeMs\n"
-	content += "- **Topic/Partition:** MessagesInPerSec, BytesInPerSec, LogEndOffset, LogStartOffset\n"
-	content += "- **Producer:** record-send-rate, request-latency-avg, batch-size-avg, compression-rate-avg, record-error-rate\n"
-	content += "- **Consumer:** records-lag-max, fetch-rate, records-consumed-rate, bytes-consumed-rate, commit-latency-avg\n"
-	content += "- **JVM:** Heap usage, GC counts/time, Thread counts\n\n"
+	content += "### General Diagnostic Steps\n\n"
+	content += "1. **Verify Connectivity**\n"
+	content += "   - Ensure network connectivity between all components\n"
+	content += "   - Check firewall and security group settings\n"
+	content += "   - Verify DNS resolution is working correctly\n\n"
 
-	content += "## Additional Resources\n\n"
-	content += "- [Apache Kafka Documentation](https://kafka.apache.org/documentation/)\n"
-	content += "- [Confluent Platform Documentation](https://docs.confluent.io/platform/current/)\n" // Confluent often has good operational guides
+	content += "2. **Check Authentication and Authorization**\n"
+	content += "   - Verify SSL/TLS certificates if used\n"
+	content += "   - Check SASL credentials and configuration\n"
+	content += "   - Verify ACLs allow required operations\n\n"
+
+	content += "3. **Review Logging Configuration**\n"
+	content += "   - Increase log levels for troubleshooting (e.g., DEBUG or TRACE)\n"
+	content += "   - Check application logs, broker logs, and client logs\n"
+	content += "   - Look for ERROR and WARN level messages\n\n"
+
+	content += "### Monitoring and Metrics\n\n"
+	content += "- Use JMX metrics to monitor Kafka performance\n"
+	content += "- Set up alerts for critical conditions:\n"
+	content += "  - Under-replicated partitions\n"
+	content += "  - High consumer lag\n"
+	content += "  - Broker resource utilization\n"
+	content += "  - Connection failures\n\n"
+
+	content += "### Testing Tools\n\n"
+	content += "- kafka-console-producer/consumer for basic functionality tests\n"
+	content += "- Use Conduktor, Kafka Tool, or other GUI tools for visual inspection\n"
+	content += "- Consider load testing with Kafka performance tools for production validation\n"
 
 	return content
 }

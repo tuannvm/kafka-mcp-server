@@ -26,7 +26,10 @@ func setupKafkaContainer(ctx context.Context) error {
 	}
 
 	// Use default Kafka version provided by testcontainers-go
-	kc, err := kafka.RunContainer(ctx, kafka.WithClusterID("test-cluster"))
+	kc, err := kafka.Run(ctx,
+		"confluentinc/confluent-local:7.5.0",
+		kafka.WithClusterID("test-cluster"),
+	)
 	if err != nil {
 		return fmt.Errorf("failed to start Kafka container: %w", err)
 	}
@@ -59,17 +62,25 @@ func TestMain(m *testing.M) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute) // Give ample time for container setup
 	defer cancel()
 
+	// Set a flag to indicate if Kafka container is available
+	var kafkaAvailable bool = false
+
+	// Try to set up Kafka container
 	err := setupKafkaContainer(ctx)
 	if err != nil {
 		fmt.Printf("WARNING: Could not set up Kafka container, integration tests will be skipped: %v\n", err)
-		// Set a flag or check testKafkaBrokers in tests to skip them
+		// No need to fail - we'll just skip the tests that need Kafka
+	} else {
+		kafkaAvailable = true
 	}
 
-	// Run tests
+	// Run tests - they should check testKafkaBrokers/testKafkaContainer being nil
 	exitCode := m.Run()
 
-	// Teardown
-	teardownKafkaContainer(context.Background())
+	// Teardown only if we successfully set up the container
+	if kafkaAvailable {
+		teardownKafkaContainer(context.Background())
+	}
 
 	os.Exit(exitCode)
 }

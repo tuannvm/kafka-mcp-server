@@ -764,7 +764,13 @@ func (c *Client) fetchGroupOffsetsAndLag(ctx context.Context, groupID string) ([
 			}
 		}
 		if len(leoErrors) > 0 {
-			// Optionally return an aggregate error, but for now, lag is just -1 or has specific error message
+			// Log the errors but don't fail the operation as we might have partial results
+			slog.WarnContext(ctx, "Some errors occurred when fetching log end offsets",
+				"group", groupID, "errors_count", len(leoErrors))
+			for i, err := range leoErrors {
+				slog.WarnContext(ctx, "Log end offset error detail",
+					"group", groupID, "error_index", i, "error", err)
+			}
 		}
 	}
 
