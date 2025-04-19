@@ -50,6 +50,7 @@ func main() {
 	// Register MCP resources and tools
 	mcp.RegisterResources(s, kafkaInterface)
 	mcp.RegisterTools(s, kafkaInterface, cfg)
+	mcp.RegisterPrompts(s, kafkaInterface)
 
 	// Start server
 	slog.Info("Starting Kafka MCP server", "version", Version, "transport", cfg.MCPTransport)
