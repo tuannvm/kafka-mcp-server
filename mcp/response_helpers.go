@@ -109,25 +109,6 @@ func addRecommendations(response map[string]interface{}, condition bool, recomme
 
 // Helper functions
 
-// Commented out as currently unused
-// extractURIPathParameter extracts a path parameter from a URI
-/*
-func extractURIPathParameter(name string) func(uri string) string {
-	return func(uri string) string {
-		pattern := fmt.Sprintf("{%s}", name)
-		parts := strings.Split(uri, "/")
-
-		for i, part := range parts {
-			if part == pattern && i+1 < len(parts) {
-				return parts[i+1]
-			}
-		}
-
-		return ""
-	}
-}
-*/
-
 // extractURIQueryParameter extracts a query parameter from a URI
 func extractURIQueryParameter(uri, name string) string {
 	if parsedURL, err := url.Parse(uri); err == nil {
