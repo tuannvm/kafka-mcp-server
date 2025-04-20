@@ -60,7 +60,7 @@ jobs:
         id: extract_version
         if: steps.semantic.outcome == 'success'
         run: |
-          VERSION=$(git describe --tags --abbrev=0)
+          VERSION=$(git describe --tags --abbrev=0 --always)
           VERSION=${VERSION#v}
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Released version: $VERSION"
