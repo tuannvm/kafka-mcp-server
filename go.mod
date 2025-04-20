@@ -8,7 +8,6 @@ require (
 	github.com/testcontainers/testcontainers-go/modules/kafka v0.36.0
 	github.com/twmb/franz-go v1.18.1
 	github.com/twmb/franz-go/pkg/kmsg v1.9.0
-	golang.org/x/text v0.22.0
 )
 
 require (
