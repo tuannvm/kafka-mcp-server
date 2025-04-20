@@ -64,6 +64,18 @@ jobs:
           VERSION=${VERSION#v}
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Released version: $VERSION"
+          # Dynamically set the tag name for use in later steps
+          TAG_NAME="v$VERSION"
+          echo "tag_name=$TAG_NAME" >> $GITHUB_ENV
+
+      - name: Validate Git Tag
+        run: |
+          TAG_NAME=${{ env.TAG_NAME }}
+          EXISTING_TAG=$(git tag --points-at ${GITHUB_SHA})
+          if [ "$EXISTING_TAG" != "$TAG_NAME" ]; then
+            git tag -f $TAG_NAME ${GITHUB_SHA}
+            git push origin $TAG_NAME --force
+          fi
 
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6
