@@ -786,17 +786,20 @@ func (c *Client) fetchGroupOffsetsAndLag(ctx context.Context, groupID string) ([
 }
 
 // DescribeConfigs fetches configuration entries for a given resource (topic or broker).
-func (c *Client) DescribeConfigs(ctx context.Context, resourceType kmsg.ConfigResourceType, resourceName string, configKeys []string) (*DescribeConfigsResult, error) {
+func (c *Client) DescribeConfigs(ctx context.Context, resourceType ConfigResourceType, resourceName string, configKeys []string) (*DescribeConfigsResult, error) {
+	slog.InfoContext(ctx, "Describing configs", "resourceType", resourceType, "resourceName", resourceName)
+
 	req := kmsg.NewDescribeConfigsRequest()
-	res := kmsg.NewDescribeConfigsRequestResource()
-	res.ResourceType = resourceType
-	res.ResourceName = resourceName
+	resource := kmsg.NewDescribeConfigsRequestResource()
+	resource.ResourceType = resourceType.ToKmsgResourceType()
+	resource.ResourceName = resourceName
+
+	// Add specific config keys if provided
 	if len(configKeys) > 0 {
-		res.ConfigNames = configKeys
-	} // If empty, requests all non-default configs
-	req.Resources = append(req.Resources, res)
-	req.IncludeSynonyms = false      // Keep it simple for now
-	req.IncludeDocumentation = false // Keep it simple for now
+		resource.ConfigNames = append(resource.ConfigNames, configKeys...)
+	}
+
+	req.Resources = append(req.Resources, resource)
 
 	// DescribeConfigs should be sent to the appropriate broker (controller for broker configs, any broker for topic configs).
 	// RequestSharded handles routing correctly.
@@ -826,7 +829,7 @@ func (c *Client) DescribeConfigs(ctx context.Context, resourceType kmsg.ConfigRe
 		// Expecting one resource result per shard usually, but loop just in case
 		for _, resResult := range resp.Resources {
 			// Match the resource we requested
-			if resResult.ResourceType == resourceType && resResult.ResourceName == resourceName {
+			if resResult.ResourceType == resourceType.ToKmsgResourceType() && resResult.ResourceName == resourceName {
 				result := &DescribeConfigsResult{
 					ResourceType: resourceType.String(), // Convert enum to string
 					ResourceName: resourceName,
@@ -994,4 +997,9 @@ func (c *Client) Close() {
 	if c.kgoClient != nil {
 		c.kgoClient.Close()
 	}
+}
+
+// StringToResourceType implements the interface method by delegating to the package function
+func (c *Client) StringToResourceType(resourceTypeStr string) (ConfigResourceType, error) {
+	return StringToResourceType(resourceTypeStr)
 }

@@ -3,8 +3,6 @@ package kafka
 
 import (
 	"context"
-
-	"github.com/twmb/franz-go/pkg/kmsg"
 )
 
 // KafkaClient defines the interface for Kafka operations.
@@ -33,11 +31,14 @@ type KafkaClient interface {
 	// including members and optionally their committed offsets and lag.
 	DescribeConsumerGroup(ctx context.Context, groupID string, includeOffsets bool) (*DescribeConsumerGroupResult, error)
 
-	// DescribeConfigs fetches configuration entries for a given resource (topic or broker).
-	DescribeConfigs(ctx context.Context, resourceType kmsg.ConfigResourceType, resourceName string, configKeys []string) (*DescribeConfigsResult, error)
+	// DescribeConfigs retrieves configuration for a Kafka resource
+	DescribeConfigs(ctx context.Context, resourceType ConfigResourceType, resourceName string, configKeys []string) (*DescribeConfigsResult, error)
 
 	// GetClusterOverview retrieves high-level cluster health information.
 	GetClusterOverview(ctx context.Context) (*ClusterOverviewResult, error)
+
+	// StringToResourceType converts a string resource type to its corresponding ConfigResourceType
+	StringToResourceType(resourceTypeStr string) (ConfigResourceType, error)
 
 	// Close gracefully shuts down the Kafka client.
 	Close()

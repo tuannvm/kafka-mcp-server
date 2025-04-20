@@ -10,7 +10,6 @@ import (
 	"github.com/tuannvm/kafka-mcp-server/config"
 	"github.com/tuannvm/kafka-mcp-server/kafka"
 	"github.com/tuannvm/kafka-mcp-server/mcp"
-	"github.com/tuannvm/kafka-mcp-server/server"
 )
 
 // Version is set during build via -X ldflags
@@ -42,7 +41,7 @@ func main() {
 	defer kafkaClient.Close()
 
 	// Create MCP server
-	s := server.NewMCPServer("kafka-mcp-server", Version)
+	s := mcp.NewMCPServer("kafka-mcp-server", Version)
 
 	// Explicitly declare the client as the KafkaClient interface type
 	var kafkaInterface kafka.KafkaClient = kafkaClient
@@ -54,7 +53,7 @@ func main() {
 
 	// Start server
 	slog.Info("Starting Kafka MCP server", "version", Version, "transport", cfg.MCPTransport)
-	if err := server.Start(ctx, s, cfg); err != nil {
+	if err := mcp.Start(ctx, s, cfg); err != nil {
 		slog.Error("Server error", "error", err)
 		os.Exit(1)
 	}

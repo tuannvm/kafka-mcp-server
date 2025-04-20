@@ -1,4 +1,4 @@
-package server
+package mcp
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/mark3labs/mcp-go/server" // Import directly without alias
+	"github.com/mark3labs/mcp-go/server"
 	"github.com/tuannvm/kafka-mcp-server/config"
 )
 

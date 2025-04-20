@@ -10,7 +10,6 @@ import (
 	"github.com/mark3labs/mcp-go/server" // Import directly without alias
 	"github.com/tuannvm/kafka-mcp-server/config"
 	"github.com/tuannvm/kafka-mcp-server/kafka"
-	"github.com/twmb/franz-go/pkg/kmsg"
 )
 
 // RegisterTools defines and registers MCP tools with the server.
@@ -258,16 +257,10 @@ func RegisterTools(s *server.MCPServer, kafkaClient kafka.KafkaClient, cfg confi
 			}
 		}
 
-		// Map string type to kmsg.ConfigResourceType
-		var resourceType kmsg.ConfigResourceType
-		switch resourceTypeStr {
-		case "topic":
-			resourceType = kmsg.ConfigResourceTypeTopic
-		case "broker":
-			resourceType = kmsg.ConfigResourceTypeBroker
-		default:
-			// Should be caught by initial validation, but handle defensively
-			return mcp.NewToolResultError(fmt.Sprintf("Internal error: unhandled resource_type '%s'", resourceTypeStr)), nil
+		// Map string type to ConfigResourceType
+		resourceType, err := kafkaClient.StringToResourceType(resourceTypeStr)
+		if err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("Invalid resource_type: %s", resourceTypeStr)), nil
 		}
 
 		slog.InfoContext(ctx, "Executing describe_configs tool", "resourceType", resourceTypeStr, "resourceName", resourceName, "configKeys", configKeys)
