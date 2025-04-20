@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/url"
-	"strings"
 	"time"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -110,7 +109,9 @@ func addRecommendations(response map[string]interface{}, condition bool, recomme
 
 // Helper functions
 
+// Commented out as currently unused
 // extractURIPathParameter extracts a path parameter from a URI
+/*
 func extractURIPathParameter(name string) func(uri string) string {
 	return func(uri string) string {
 		pattern := fmt.Sprintf("{%s}", name)
@@ -125,6 +126,7 @@ func extractURIPathParameter(name string) func(uri string) string {
 		return ""
 	}
 }
+*/
 
 // extractURIQueryParameter extracts a query parameter from a URI
 func extractURIQueryParameter(uri, name string) string {
@@ -133,14 +135,6 @@ func extractURIQueryParameter(uri, name string) string {
 		return values.Get(name)
 	}
 	return ""
-}
-
-// extractURIComponent extracts a specific component from a URI
-func extractURIComponent(uri, pattern, defaultValue string) string {
-	if value := strings.TrimSpace(extractURIPathParameter(pattern)(uri)); value != "" {
-		return value
-	}
-	return defaultValue
 }
 
 // getStatus returns the first value if condition is true, otherwise the second value

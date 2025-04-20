@@ -372,7 +372,7 @@ func RegisterPrompts(s *server.MCPServer, kafkaClient kafka.KafkaClient) {
 			// Describe each group to get offset/lag info
 			descResult, descErr := kafkaClient.DescribeConsumerGroup(ctx, groupInfo.GroupID, true) // includeOffsets = true
 
-			var state string = "Unknown"
+			var state = "Unknown"
 			members := 0
 			topics := []string{}
 			totalLag := int64(0)

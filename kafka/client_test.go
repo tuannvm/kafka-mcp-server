@@ -63,7 +63,7 @@ func TestMain(m *testing.M) {
 	defer cancel()
 
 	// Set a flag to indicate if Kafka container is available
-	var kafkaAvailable bool = false
+	var kafkaAvailable = false
 
 	// Try to set up Kafka container
 	err := setupKafkaContainer(ctx)
