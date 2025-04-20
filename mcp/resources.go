@@ -4,12 +4,8 @@ package mcp
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log/slog"
-	"net/url"
 	"strconv"
-	"strings"
-	"time"
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
@@ -77,27 +73,26 @@ func clusterOverviewResource(kafkaClient kafka.KafkaClient) ResourceContentsFunc
 		// Get overview data
 		overview, err := kafkaClient.GetClusterOverview(ctx)
 		if err != nil {
-			slog.ErrorContext(ctx, "Failed to get cluster overview", "error", err)
-			return nil, fmt.Errorf("failed to get cluster overview: %w", err)
+			return handleResourceError(ctx, err, "Failed to get cluster overview")
 		}
 
 		// Create a structured response
-		response := map[string]interface{}{
-			"broker_count":                overview.BrokerCount,
-			"controller_id":               overview.ControllerID,
-			"topic_count":                 overview.TopicCount,
-			"partition_count":             overview.PartitionCount,
-			"under_replicated_partitions": overview.UnderReplicatedPartitionsCount,
-			"offline_partitions":          overview.OfflinePartitionsCount,
-			"offline_broker_ids":          overview.OfflineBrokerIDs,
-			"health_status": getHealthStatus(
-				overview.OfflinePartitionsCount > 0,
-				overview.ControllerID == -1,
-				len(overview.OfflineBrokerIDs) > 0,
-				overview.UnderReplicatedPartitionsCount > 0,
-			),
-			"timestamp": getCurrentTimestamp(),
-		}
+		response := createBaseResourceResponse()
+
+		// Add cluster specific fields
+		response["broker_count"] = overview.BrokerCount
+		response["controller_id"] = overview.ControllerID
+		response["topic_count"] = overview.TopicCount
+		response["partition_count"] = overview.PartitionCount
+		response["under_replicated_partitions"] = overview.UnderReplicatedPartitionsCount
+		response["offline_partitions"] = overview.OfflinePartitionsCount
+		response["offline_broker_ids"] = overview.OfflineBrokerIDs
+		response["health_status"] = getHealthStatusString(
+			overview.OfflinePartitionsCount > 0,
+			overview.ControllerID == -1,
+			len(overview.OfflineBrokerIDs) > 0,
+			overview.UnderReplicatedPartitionsCount > 0,
+		)
 
 		return json.Marshal(response)
 	}
@@ -111,8 +106,7 @@ func healthCheckResource(kafkaClient kafka.KafkaClient) ResourceContentsFunc {
 		// Get overview for basic health info
 		overview, err := kafkaClient.GetClusterOverview(ctx)
 		if err != nil {
-			slog.ErrorContext(ctx, "Failed to get cluster overview for health check", "error", err)
-			return nil, fmt.Errorf("failed to get cluster overview for health check: %w", err)
+			return handleResourceError(ctx, err, "Failed to get cluster overview for health check")
 		}
 
 		// Get consumer groups
@@ -138,40 +132,49 @@ func healthCheckResource(kafkaClient kafka.KafkaClient) ResourceContentsFunc {
 		}
 
 		// Create a structured response
-		response := map[string]interface{}{
-			"timestamp": getCurrentTimestamp(),
-			"broker_status": map[string]interface{}{
-				"total_brokers":      overview.BrokerCount,
-				"offline_brokers":    len(overview.OfflineBrokerIDs),
-				"offline_broker_ids": overview.OfflineBrokerIDs,
-				"status":             getStatus(len(overview.OfflineBrokerIDs) > 0, "critical", "healthy"),
-			},
-			"controller_status": map[string]interface{}{
-				"controller_id": overview.ControllerID,
-				"status":        getStatus(overview.ControllerID == -1, "critical", "healthy"),
-			},
-			"partition_status": map[string]interface{}{
-				"total_partitions":            overview.PartitionCount,
-				"under_replicated_partitions": overview.UnderReplicatedPartitionsCount,
-				"offline_partitions":          overview.OfflinePartitionsCount,
-				"status": getPartitionHealthStatus(
-					overview.UnderReplicatedPartitionsCount,
-					overview.OfflinePartitionsCount,
-				),
-			},
-			"consumer_status": map[string]interface{}{
-				"total_groups":         len(groups),
-				"groups_with_high_lag": groupsWithHighLag,
-				"status":               getStatus(groupsWithHighLag > 0, "warning", "healthy"),
-				"error":                getErrorString(groupErr),
-			},
-			"overall_status": getHealthStatus(
-				overview.OfflinePartitionsCount > 0,
-				overview.ControllerID == -1,
-				len(overview.OfflineBrokerIDs) > 0,
-				overview.UnderReplicatedPartitionsCount > 0 || groupsWithHighLag > 0,
+		response := createBaseResourceResponse()
+
+		// Add broker status
+		response["broker_status"] = map[string]interface{}{
+			"total_brokers":      overview.BrokerCount,
+			"offline_brokers":    len(overview.OfflineBrokerIDs),
+			"offline_broker_ids": overview.OfflineBrokerIDs,
+			"status":             getStatus(len(overview.OfflineBrokerIDs) > 0, "critical", "healthy"),
+		}
+
+		// Add controller status
+		response["controller_status"] = map[string]interface{}{
+			"controller_id": overview.ControllerID,
+			"status":        getStatus(overview.ControllerID == -1, "critical", "healthy"),
+		}
+
+		// Add partition status
+		response["partition_status"] = map[string]interface{}{
+			"total_partitions":            overview.PartitionCount,
+			"under_replicated_partitions": overview.UnderReplicatedPartitionsCount,
+			"offline_partitions":          overview.OfflinePartitionsCount,
+			"status": getStatus(
+				overview.OfflinePartitionsCount > 0 || overview.UnderReplicatedPartitionsCount > 0,
+				"critical",
+				"healthy",
 			),
 		}
+
+		// Add consumer status
+		response["consumer_status"] = map[string]interface{}{
+			"total_groups":         len(groups),
+			"groups_with_high_lag": groupsWithHighLag,
+			"status":               getStatus(groupsWithHighLag > 0, "warning", "healthy"),
+			"error":                getErrorString(groupErr),
+		}
+
+		// Add overall status
+		response["overall_status"] = getHealthStatusString(
+			overview.OfflinePartitionsCount > 0,
+			overview.ControllerID == -1,
+			len(overview.OfflineBrokerIDs) > 0,
+			overview.UnderReplicatedPartitionsCount > 0 || groupsWithHighLag > 0,
+		)
 
 		return json.Marshal(response)
 	}
@@ -185,16 +188,13 @@ func underReplicatedPartitionsResource(kafkaClient kafka.KafkaClient) ResourceCo
 		// Get overview for quick check
 		overview, err := kafkaClient.GetClusterOverview(ctx)
 		if err != nil {
-			slog.ErrorContext(ctx, "Failed to get cluster overview for URP check", "error", err)
-			return nil, fmt.Errorf("failed to get cluster overview for URP check: %w", err)
+			return handleResourceError(ctx, err, "Failed to get cluster overview for URP check")
 		}
 
 		// Create base response
-		response := map[string]interface{}{
-			"timestamp":                        getCurrentTimestamp(),
-			"under_replicated_partition_count": overview.UnderReplicatedPartitionsCount,
-			"details":                          []map[string]interface{}{},
-		}
+		response := createBaseResourceResponse()
+		response["under_replicated_partition_count"] = overview.UnderReplicatedPartitionsCount
+		response["details"] = []map[string]interface{}{}
 
 		// If no URPs, return early
 		if overview.UnderReplicatedPartitionsCount == 0 {
@@ -204,8 +204,7 @@ func underReplicatedPartitionsResource(kafkaClient kafka.KafkaClient) ResourceCo
 		// Get list of all topics
 		topics, err := kafkaClient.ListTopics(ctx)
 		if err != nil {
-			slog.ErrorContext(ctx, "Failed to list topics", "error", err)
-			return nil, fmt.Errorf("failed to list topics: %w", err)
+			return handleResourceError(ctx, err, "Failed to list topics")
 		}
 
 		// Track URPs
@@ -256,15 +255,15 @@ func underReplicatedPartitionsResource(kafkaClient kafka.KafkaClient) ResourceCo
 		response["details"] = urpDetails
 
 		// Add recommendations if URPs were found
-		if len(urpDetails) > 0 {
-			response["recommendations"] = []string{
-				"Check broker health for any offline or struggling brokers",
-				"Verify network connectivity between brokers",
-				"Monitor disk space on broker nodes",
-				"Review broker logs for detailed error messages",
-				"Consider increasing replication timeouts if network is slow",
-			}
+		recommendations := []string{
+			"Check broker health for any offline or struggling brokers",
+			"Verify network connectivity between brokers",
+			"Monitor disk space on broker nodes",
+			"Review broker logs for detailed error messages",
+			"Consider increasing replication timeouts if network is slow",
 		}
+
+		addRecommendations(response, len(urpDetails) > 0, recommendations)
 
 		return json.Marshal(response)
 	}
@@ -288,18 +287,15 @@ func consumerLagReportResource(kafkaClient kafka.KafkaClient) ResourceContentsFu
 		// Get list of consumer groups
 		groups, err := kafkaClient.ListConsumerGroups(ctx)
 		if err != nil {
-			slog.ErrorContext(ctx, "Failed to list consumer groups", "error", err)
-			return nil, fmt.Errorf("failed to list consumer groups: %w", err)
+			return handleResourceError(ctx, err, "Failed to list consumer groups")
 		}
 
 		// Prepare response
-		response := map[string]interface{}{
-			"timestamp":        getCurrentTimestamp(),
-			"lag_threshold":    lagThreshold,
-			"group_count":      len(groups),
-			"group_summary":    []map[string]interface{}{},
-			"high_lag_details": []map[string]interface{}{},
-		}
+		response := createBaseResourceResponse()
+		response["lag_threshold"] = lagThreshold
+		response["group_count"] = len(groups)
+		response["group_summary"] = []map[string]interface{}{}
+		response["high_lag_details"] = []map[string]interface{}{}
 
 		if len(groups) == 0 {
 			return json.Marshal(response)
@@ -372,94 +368,16 @@ func consumerLagReportResource(kafkaClient kafka.KafkaClient) ResourceContentsFu
 		response["groups_with_high_lag"] = groupsWithHighLag
 
 		// Add recommendations if high lag was found
-		if groupsWithHighLag > 0 {
-			response["recommendations"] = []string{
-				"Increase consumer instances to process messages faster",
-				"Check for consumer errors or bottlenecks in consumer application logs",
-				"Verify producer rate isn't abnormally high",
-				"Review consumer configuration for performance tuning",
-				"Consider topic partitioning to allow more parallel processing",
-			}
+		recommendations := []string{
+			"Increase consumer instances to process messages faster",
+			"Check for consumer errors or bottlenecks in consumer application logs",
+			"Verify producer rate isn't abnormally high",
+			"Review consumer configuration for performance tuning",
+			"Consider topic partitioning to allow more parallel processing",
 		}
+
+		addRecommendations(response, groupsWithHighLag > 0, recommendations)
 
 		return json.Marshal(response)
 	}
-}
-
-// Helper functions
-
-// getHealthStatus returns a string indicating the overall health status
-func getHealthStatus(hasOfflinePartitions, noController, hasOfflineBrokers, hasWarnings bool) string {
-	if hasOfflinePartitions || noController || hasOfflineBrokers {
-		return "critical"
-	}
-	if hasWarnings {
-		return "warning"
-	}
-	return "healthy"
-}
-
-// getPartitionHealthStatus returns a string indicating partition health
-func getPartitionHealthStatus(urpCount, offlineCount int) string {
-	if offlineCount > 0 {
-		return "critical"
-	}
-	if urpCount > 0 {
-		return "warning"
-	}
-	return "healthy"
-}
-
-// getCurrentTimestamp returns the current timestamp in ISO 8601 format
-func getCurrentTimestamp() string {
-	return time.Now().UTC().Format(time.RFC3339)
-}
-
-// extractURIPathParameter extracts a path parameter from a URI
-func extractURIPathParameter(name string) func(uri string) string {
-	return func(uri string) string {
-		pattern := fmt.Sprintf("{%s}", name)
-		parts := strings.Split(uri, "/")
-
-		for i, part := range parts {
-			if part == pattern && i+1 < len(parts) {
-				return parts[i+1]
-			}
-		}
-
-		return ""
-	}
-}
-
-// extractURIQueryParameter extracts a query parameter from a URI
-func extractURIQueryParameter(uri, name string) string {
-	if parsedURL, err := url.Parse(uri); err == nil {
-		values := parsedURL.Query()
-		return values.Get(name)
-	}
-	return ""
-}
-
-// extractURIComponent extracts a specific component from a URI
-func extractURIComponent(uri, pattern, defaultValue string) string {
-	if value := strings.TrimSpace(extractURIPathParameter(pattern)(uri)); value != "" {
-		return value
-	}
-	return defaultValue
-}
-
-// getStatus returns the first value if condition is true, otherwise the second value
-func getStatus(condition bool, trueValue, falseValue string) string {
-	if condition {
-		return trueValue
-	}
-	return falseValue
-}
-
-// getErrorString returns the error string or empty string if error is nil
-func getErrorString(err error) string {
-	if err != nil {
-		return err.Error()
-	}
-	return ""
 }

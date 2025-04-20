@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
@@ -34,23 +33,13 @@ func RegisterPrompts(s *server.MCPServer, kafkaClient kafka.KafkaClient) {
 		// Get overview data
 		overview, err := kafkaClient.GetClusterOverview(ctx)
 		if err != nil {
-			return &mcp.GetPromptResult{
-				Description: "Error retrieving cluster overview",
-				Messages: []mcp.PromptMessage{
-					{
-						Role: mcp.RoleAssistant,
-						Content: mcp.TextContent{
-							Type: "text",
-							Text: fmt.Sprintf("Failed to get cluster overview: %v", err),
-						},
-					},
-				},
-			}, nil
+			return handlePromptError(ctx, "Error retrieving cluster overview", err, "Failed to get cluster overview")
 		}
 
 		// Format the response
-		response := fmt.Sprintf("## Kafka Cluster Overview\n\n"+
-			"- **Broker Count**: %d\n"+
+		response := formatResponseHeader("Kafka Cluster Overview")
+
+		response += fmt.Sprintf("- **Broker Count**: %d\n"+
 			"- **Active Controller ID**: %d\n"+
 			"- **Total Topics**: %d\n"+
 			"- **Total Partitions**: %d\n"+
@@ -62,6 +51,10 @@ func RegisterPrompts(s *server.MCPServer, kafkaClient kafka.KafkaClient) {
 			overview.PartitionCount,
 			overview.UnderReplicatedPartitionsCount,
 			overview.OfflinePartitionsCount)
+
+		// Check for warning conditions
+		critical := overview.OfflinePartitionsCount > 0 || overview.ControllerID == -1 || len(overview.OfflineBrokerIDs) > 0
+		warning := overview.UnderReplicatedPartitionsCount > 0
 
 		if len(overview.OfflineBrokerIDs) > 0 {
 			brokerIDsStr := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(overview.OfflineBrokerIDs)), ", "), "[]")
@@ -84,26 +77,10 @@ func RegisterPrompts(s *server.MCPServer, kafkaClient kafka.KafkaClient) {
 		}
 
 		// Add overall health status
-		if overview.OfflinePartitionsCount > 0 || overview.ControllerID == -1 || len(overview.OfflineBrokerIDs) > 0 {
-			response += "**Overall Status**: 🚨 Critical Issues Detected\n"
-		} else if overview.UnderReplicatedPartitionsCount > 0 {
-			response += "**Overall Status**: ⚠️ Warnings Detected\n"
-		} else {
-			response += "**Overall Status**: ✅ Healthy\n"
-		}
+		emoji, statusText := formatHealthStatus(critical, warning)
+		response += fmt.Sprintf("**Overall Status**: %s %s\n", emoji, statusText)
 
-		return &mcp.GetPromptResult{
-			Description: "Kafka Cluster Overview",
-			Messages: []mcp.PromptMessage{
-				{
-					Role: mcp.RoleAssistant,
-					Content: mcp.TextContent{
-						Type: "text",
-						Text: response,
-					},
-				},
-			},
-		}, nil
+		return createSuccessResponse("Kafka Cluster Overview", response)
 	})
 
 	// Register health check prompt
@@ -124,25 +101,11 @@ func RegisterPrompts(s *server.MCPServer, kafkaClient kafka.KafkaClient) {
 		// Get overview data for basic health info
 		overview, err := kafkaClient.GetClusterOverview(ctx)
 		if err != nil {
-			return &mcp.GetPromptResult{
-				Description: "Error running health check",
-				Messages: []mcp.PromptMessage{
-					{
-						Role: mcp.RoleAssistant,
-						Content: mcp.TextContent{
-							Type: "text",
-							Text: fmt.Sprintf("Failed to get cluster overview for health check: %v", err),
-						},
-					},
-				},
-			}, nil
+			return handlePromptError(ctx, "Error running health check", err, "Failed to get cluster overview for health check")
 		}
 
 		// Begin building the health check report
-		response := "# Kafka Cluster Health Check Report\n\n"
-
-		// Add timestamp
-		response += fmt.Sprintf("**Time**: %s\n\n", time.Now().UTC().Format(time.RFC3339))
+		response := formatResponseHeader("Kafka Cluster Health Check Report")
 
 		// Add broker status section
 		response += "## Broker Status\n\n"
@@ -224,28 +187,22 @@ func RegisterPrompts(s *server.MCPServer, kafkaClient kafka.KafkaClient) {
 		// Add overall health status
 		response += "## Overall Health Assessment\n\n"
 
-		// Reuse the groupsWithHighLag from above - no need to compute it again
-		if overview.OfflinePartitionsCount > 0 || overview.ControllerID == -1 || len(overview.OfflineBrokerIDs) > 0 {
-			response += "🚨 **CRITICAL**: The cluster has serious issues that require immediate attention.\n"
-		} else if overview.UnderReplicatedPartitionsCount > 0 || ((groups != nil) && len(groups) > 0) {
-			// Just check if there are consumer groups instead of specific lag
-			response += "⚠️ **WARNING**: The cluster has issues that should be investigated soon.\n"
+		// Determine overall health status
+		critical := overview.OfflinePartitionsCount > 0 || overview.ControllerID == -1 || len(overview.OfflineBrokerIDs) > 0
+		warning := overview.UnderReplicatedPartitionsCount > 0 || ((groups != nil) && len(groups) > 0)
+
+		emoji, statusText := formatHealthStatus(critical, warning)
+		response += fmt.Sprintf("%s **%s**: ", emoji, strings.ToUpper(statusText))
+
+		if critical {
+			response += "The cluster has serious issues that require immediate attention.\n"
+		} else if warning {
+			response += "The cluster has issues that should be investigated soon.\n"
 		} else {
-			response += "✅ **HEALTHY**: All systems are operating normally.\n"
+			response += "All systems are operating normally.\n"
 		}
 
-		return &mcp.GetPromptResult{
-			Description: "Kafka Health Check Report",
-			Messages: []mcp.PromptMessage{
-				{
-					Role: mcp.RoleAssistant,
-					Content: mcp.TextContent{
-						Type: "text",
-						Text: response,
-					},
-				},
-			},
-		}, nil
+		return createSuccessResponse("Kafka Health Check Report", response)
 	})
 
 	// Register under-replicated partitions prompt
@@ -266,40 +223,15 @@ func RegisterPrompts(s *server.MCPServer, kafkaClient kafka.KafkaClient) {
 		// Get overview for quick check
 		overview, err := kafkaClient.GetClusterOverview(ctx)
 		if err != nil {
-			return &mcp.GetPromptResult{
-				Description: "Error retrieving under-replicated partitions",
-				Messages: []mcp.PromptMessage{
-					{
-						Role: mcp.RoleAssistant,
-						Content: mcp.TextContent{
-							Type: "text",
-							Text: fmt.Sprintf("Failed to get cluster overview for URP check: %v", err),
-						},
-					},
-				},
-			}, nil
+			return handlePromptError(ctx, "Error retrieving under-replicated partitions", err, "Failed to get cluster overview for URP check")
 		}
 
 		// Begin building the response
-		response := "# Under-Replicated Partitions Report\n\n"
-
-		// Add timestamp
-		response += fmt.Sprintf("**Time**: %s\n\n", time.Now().UTC().Format(time.RFC3339))
+		response := formatResponseHeader("Under-Replicated Partitions Report")
 
 		if overview.UnderReplicatedPartitionsCount == 0 {
 			response += "✅ **Good news!** No under-replicated partitions found.\n"
-			return &mcp.GetPromptResult{
-				Description: "No under-replicated partitions found",
-				Messages: []mcp.PromptMessage{
-					{
-						Role: mcp.RoleAssistant,
-						Content: mcp.TextContent{
-							Type: "text",
-							Text: response,
-						},
-					},
-				},
-			}, nil
+			return createSuccessResponse("No under-replicated partitions found", response)
 		}
 
 		response += fmt.Sprintf("⚠️ **Found %d under-replicated partitions**\n\n", overview.UnderReplicatedPartitionsCount)
@@ -307,18 +239,7 @@ func RegisterPrompts(s *server.MCPServer, kafkaClient kafka.KafkaClient) {
 		// Get list of all topics
 		topics, err := kafkaClient.ListTopics(ctx)
 		if err != nil {
-			return &mcp.GetPromptResult{
-				Description: "Error listing topics",
-				Messages: []mcp.PromptMessage{
-					{
-						Role: mcp.RoleAssistant,
-						Content: mcp.TextContent{
-							Type: "text",
-							Text: fmt.Sprintf("Failed to list topics: %v", err),
-						},
-					},
-				},
-			}, nil
+			return handlePromptError(ctx, "Error listing topics", err, "Failed to list topics")
 		}
 
 		// Add table header
@@ -387,18 +308,7 @@ func RegisterPrompts(s *server.MCPServer, kafkaClient kafka.KafkaClient) {
 			response += "\n⚠️ Overview reported under-replicated partitions, but none were found during detailed scan. The condition may have resolved itself.\n"
 		}
 
-		return &mcp.GetPromptResult{
-			Description: "Under-Replicated Partitions Report",
-			Messages: []mcp.PromptMessage{
-				{
-					Role: mcp.RoleAssistant,
-					Content: mcp.TextContent{
-						Type: "text",
-						Text: response,
-					},
-				},
-			},
-		}, nil
+		return createSuccessResponse("Under-Replicated Partitions Report", response)
 	})
 
 	// Register consumer lag report prompt
@@ -435,41 +345,16 @@ func RegisterPrompts(s *server.MCPServer, kafkaClient kafka.KafkaClient) {
 		// Get list of consumer groups
 		groups, err := kafkaClient.ListConsumerGroups(ctx)
 		if err != nil {
-			return &mcp.GetPromptResult{
-				Description: "Error listing consumer groups",
-				Messages: []mcp.PromptMessage{
-					{
-						Role: mcp.RoleAssistant,
-						Content: mcp.TextContent{
-							Type: "text",
-							Text: fmt.Sprintf("Failed to list consumer groups: %v", err),
-						},
-					},
-				},
-			}, nil
+			return handlePromptError(ctx, "Error listing consumer groups", err, "Failed to list consumer groups")
 		}
 
 		// Begin building the response
-		response := "# Kafka Consumer Lag Report\n\n"
-
-		// Add timestamp and config
-		response += fmt.Sprintf("**Time**: %s\n", time.Now().UTC().Format(time.RFC3339))
+		response := formatResponseHeader("Kafka Consumer Lag Report")
 		response += fmt.Sprintf("**Lag Threshold**: %d messages\n\n", lagThreshold)
 
 		if len(groups) == 0 {
 			response += "No active consumer groups found.\n"
-			return &mcp.GetPromptResult{
-				Description: "No active consumer groups",
-				Messages: []mcp.PromptMessage{
-					{
-						Role: mcp.RoleAssistant,
-						Content: mcp.TextContent{
-							Type: "text",
-							Text: response,
-						},
-					},
-				},
-			}, nil
+			return createSuccessResponse("No active consumer groups", response)
 		}
 
 		response += fmt.Sprintf("Found %d consumer group(s)\n\n", len(groups))
@@ -574,17 +459,6 @@ func RegisterPrompts(s *server.MCPServer, kafkaClient kafka.KafkaClient) {
 			response += "\n✅ All consumer groups are keeping up with producers.\n"
 		}
 
-		return &mcp.GetPromptResult{
-			Description: "Consumer Lag Report",
-			Messages: []mcp.PromptMessage{
-				{
-					Role: mcp.RoleAssistant,
-					Content: mcp.TextContent{
-						Type: "text",
-						Text: response,
-					},
-				},
-			},
-		}, nil
+		return createSuccessResponse("Consumer Lag Report", response)
 	})
 }
