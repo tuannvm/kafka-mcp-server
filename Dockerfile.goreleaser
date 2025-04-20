@@ -1,0 +1,25 @@
+FROM alpine:latest
+
+RUN apk --no-cache add ca-certificates
+
+WORKDIR /root/
+
+# Copy the pre-built binary file from the builder stage
+COPY kafka-mcp-server .
+
+# Default environment variables
+ENV KAFKA_BROKERS="localhost:9092"
+ENV KAFKA_CLIENT_ID="kafka-mcp-server"
+ENV KAFKA_SASL_MECHANISM=""
+ENV KAFKA_SASL_USER=""
+ENV KAFKA_SASL_PASSWORD=""
+ENV TLS_ENABLE="false"
+ENV TLS_INSECURE_SKIP_VERIFY="true"
+ENV MCP_TRANSPORT="stdio"
+ENV MCP_PORT="9097"
+
+# Expose the port
+EXPOSE ${MCP_PORT}
+
+# Run the application
+ENTRYPOINT ["./kafka-mcp-server"] 

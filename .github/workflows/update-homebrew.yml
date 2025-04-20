@@ -1,0 +1,24 @@
+name: Update Homebrew Formula on Release
+
+on:
+  workflow_run:
+    workflows: ["Release Pipeline"]
+    types: [completed]
+    branches: [main]
+
+jobs:
+  trigger-homebrew-update:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set repo name
+        id: repo-name
+        run: echo "REPO_NAME=$(echo ${{ github.repository }} | cut -d '/' -f 2)" >> $GITHUB_OUTPUT
+        
+      - name: Trigger homebrew formula update
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          repository: tuannvm/homebrew-mcp
+          event-type: update-formula
+          client-payload: '{"repository": "${{ github.repository }}", "formula": "${{ steps.repo-name.outputs.REPO_NAME }}.rb"}' 

@@ -1,0 +1,14 @@
+# Binaries
+kafka-mcp-server
+
+# Go dependencies
+vendor/
+
+# Environment variables file
+.env
+
+# OS generated files
+.DS_Store
+*.pem
+*.crt
+*.key
