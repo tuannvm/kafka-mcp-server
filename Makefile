@@ -14,6 +14,10 @@ build:
 test:
 	go test ./...
 
+# Run tests without Kafka container (skips integration tests)
+test-no-kafka:
+	SKIP_KAFKA_TESTS=true go test ./...
+
 # Clean build artifacts
 clean:
 	rm -rf $(BUILD_DIR)
