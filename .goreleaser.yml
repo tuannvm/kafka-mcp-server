@@ -5,7 +5,7 @@ before:
 
 builds:
   - main: ./cmd/server/main.go
-    binary: mcp-trino
+    binary: kafka-mcp-server
     env:
       - CGO_ENABLED=0
     goos:
@@ -46,7 +46,7 @@ changelog:
 release:
   github:
     owner: "{{.Env.GITHUB_REPOSITORY_OWNER}}"
-    name: "mcp-trino"
+    name: "kafka-mcp-server"
   draft: false
   prerelease: auto
   name_template: "{{.ProjectName}} v{{.Version}}"
@@ -54,8 +54,8 @@ release:
 # Update Docker configuration to be compatible with most GoReleaser versions
 dockers:
   - image_templates:
-      - "ghcr.io/{{.Env.GITHUB_REPOSITORY_OWNER}}/mcp-trino:{{ .Version }}"
-      - "ghcr.io/{{.Env.GITHUB_REPOSITORY_OWNER}}/mcp-trino:latest"
+      - "ghcr.io/{{.Env.GITHUB_REPOSITORY_OWNER}}/kafka-mcp-server:{{ .Version }}"
+      - "ghcr.io/{{.Env.GITHUB_REPOSITORY_OWNER}}/kafka-mcp-server:latest"
     dockerfile: Dockerfile.goreleaser
     build_flag_templates:
       - "--pull"

@@ -51,13 +51,13 @@ All through the standardized Model Context Protocol (MCP).
 
 #### Homebrew (macOS and Linux)
 
-The easiest way to install mcp-trino is using Homebrew:
+The easiest way to install kafka-mcp-server is using Homebrew:
 
 ```bash
 # Add the tap repository
 brew tap tuannvm/mcp
 
-# Install mcp-trino
+# Install kafka-mcp-server
 brew install kafka-mcp-server
 ```
 
