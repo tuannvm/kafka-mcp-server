@@ -14,7 +14,8 @@ module.exports = {
                     { type: 'refactor', release: 'patch' },
                     { type: 'chore', scope: 'deps', release: 'patch' },
                     // Consider any changes to Go files as a patch release (fallback)
-                    { files: ['**/*.go'], release: 'patch' }
+                    { files: ['**/*.go'], release: 'patch' },
+                    { type: 'release', release: 'patch' }
                 ]
             }
         ],
