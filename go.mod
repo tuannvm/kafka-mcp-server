@@ -3,7 +3,7 @@ module github.com/tuannvm/kafka-mcp-server
 go 1.24.2
 
 require (
-	github.com/mark3labs/mcp-go v0.25.0
+	github.com/mark3labs/mcp-go v0.32.0
 	github.com/stretchr/testify v1.10.0
 	github.com/testcontainers/testcontainers-go/modules/kafka v0.37.0
 	github.com/twmb/franz-go v1.18.1
