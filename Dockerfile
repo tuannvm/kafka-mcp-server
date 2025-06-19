@@ -17,7 +17,7 @@ COPY . .
 # Build the Go app
 # -ldflags="-w -s" reduces the size of the binary by removing debug information.
 # CGO_ENABLED=0 disables CGO for static linking, useful for alpine base images.
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /kafka-mcp-server ./cmd/server
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /kafka-mcp-server ./cmd/
 
 # --- Start final stage --- #
 
