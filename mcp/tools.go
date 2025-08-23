@@ -27,10 +27,23 @@ func RegisterTools(s *server.MCPServer, kafkaClient kafka.KafkaClient, cfg confi
 		topic := req.GetString("topic", "")
 		keyArg := req.GetString("key", "")
 		value := req.GetString("value", "")
+		
+		if topic == "" {
+			return mcp.NewToolResultError("Missing required parameter: topic (string)"), nil
+		}
+		if value == "" {
+			return mcp.NewToolResultError("Missing required parameter: value (string)"), nil
+		}
 
-		slog.InfoContext(ctx, "Executing produce_message tool", "topic", topic, "key", keyArg)
+		// Do not log raw keys; just indicate presence to avoid accidental PII leakage.
+		slog.InfoContext(ctx, "Executing produce_message tool", "topic", topic, "hasKey", keyArg != "")
 
-		err := kafkaClient.ProduceMessage(ctx, topic, []byte(keyArg), []byte(value))
+		// Empty key => nil for random partitioning; non-empty => use provided key.
+		var key []byte
+		if keyArg != "" {
+			key = []byte(keyArg)
+		} // else keep nil
+		err := kafkaClient.ProduceMessage(ctx, topic, key, []byte(value))
 		if err != nil {
 			slog.ErrorContext(ctx, "Failed to produce message", "error", err)
 			return mcp.NewToolResultError(err.Error()), nil // Use mcp.NewToolResultError
