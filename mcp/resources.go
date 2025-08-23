@@ -37,30 +37,30 @@ func resourceHandlerFuncWrapper(contentsFunc ResourceContentsFunc) server.Resour
 func RegisterResources(s *server.MCPServer, kafkaClient kafka.KafkaClient) {
 	// Register core resources
 	s.AddResource(mcp.Resource{
-		URI:         "kafka-mcp://{cluster}/overview",
-		Name:        "Cluster Overview",
-		Description: "Summary of Kafka cluster health and metrics",
+		URI:         "kafka-mcp://overview",
+		Name:        "Kafka Cluster Overview",
+		Description: "Comprehensive summary of Kafka cluster health including broker counts, controller status, topic/partition metrics, and replication health. Use this resource for quick cluster status assessment and monitoring dashboards.",
 		MIMEType:    "application/json",
 	}, resourceHandlerFuncWrapper(clusterOverviewResource(kafkaClient)))
 
 	s.AddResource(mcp.Resource{
-		URI:         "kafka-mcp://{cluster}/health-check",
-		Name:        "Health Check",
-		Description: "Comprehensive health assessment of the Kafka cluster",
+		URI:         "kafka-mcp://health-check",
+		Name:        "Kafka Cluster Health Check",
+		Description: "Detailed health assessment of the Kafka cluster covering broker availability, controller status, partition health, and consumer group performance. Provides actionable insights for troubleshooting and maintenance.",
 		MIMEType:    "application/json",
 	}, resourceHandlerFuncWrapper(healthCheckResource(kafkaClient)))
 
 	s.AddResource(mcp.Resource{
-		URI:         "kafka-mcp://{cluster}/under-replicated-partitions",
-		Name:        "Under-Replicated Partitions",
-		Description: "Detailed report of under-replicated partitions",
+		URI:         "kafka-mcp://under-replicated-partitions",
+		Name:        "Under-Replicated Partitions Report",
+		Description: "Comprehensive analysis of partitions with insufficient replication, including affected topics, missing replicas, and troubleshooting recommendations. Critical for identifying and resolving data durability issues.",
 		MIMEType:    "application/json",
 	}, resourceHandlerFuncWrapper(underReplicatedPartitionsResource(kafkaClient)))
 
 	s.AddResource(mcp.Resource{
-		URI:         "kafka-mcp://{cluster}/consumer-lag-report",
-		Name:        "Consumer Lag Report",
-		Description: "Analysis of consumer group lag across the cluster",
+		URI:         "kafka-mcp://consumer-lag-report",
+		Name:        "Consumer Group Lag Analysis",
+		Description: "Detailed analysis of consumer group performance including lag metrics, group states, partition assignments, and performance recommendations. Supports threshold-based alerting and performance optimization.",
 		MIMEType:    "application/json",
 	}, resourceHandlerFuncWrapper(consumerLagReportResource(kafkaClient)))
 }

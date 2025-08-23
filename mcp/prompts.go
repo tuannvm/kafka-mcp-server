@@ -18,14 +18,8 @@ func RegisterPrompts(s *server.MCPServer, kafkaClient kafka.KafkaClient) {
 	// Register cluster overview prompt
 	clusterOverviewPrompt := mcp.Prompt{
 		Name:        "kafka_cluster_overview",
-		Description: "Provides a summary of Kafka cluster health and metrics",
-		Arguments: []mcp.PromptArgument{
-			{
-				Name:        "cluster",
-				Description: "The Kafka cluster name",
-				Required:    true,
-			},
-		},
+		Description: "Generates a comprehensive, human-readable summary of Kafka cluster health including broker counts, controller status, topic/partition metrics, and replication health. Perfect for status reports, monitoring dashboards, and quick cluster assessments.",
+		Arguments: []mcp.PromptArgument{},
 	}
 	s.AddPrompt(clusterOverviewPrompt, func(ctx context.Context, req mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
 		slog.InfoContext(ctx, "Executing cluster overview prompt")
@@ -86,14 +80,8 @@ func RegisterPrompts(s *server.MCPServer, kafkaClient kafka.KafkaClient) {
 	// Register health check prompt
 	healthCheckPrompt := mcp.Prompt{
 		Name:        "kafka_health_check",
-		Description: "Run a comprehensive health check on the Kafka cluster",
-		Arguments: []mcp.PromptArgument{
-			{
-				Name:        "cluster",
-				Description: "The Kafka cluster name",
-				Required:    true,
-			},
-		},
+		Description: "Performs a comprehensive health assessment of the Kafka cluster with detailed analysis of broker availability, controller status, partition health, and consumer group performance. Provides actionable recommendations for troubleshooting and maintenance activities.",
+		Arguments: []mcp.PromptArgument{},
 	}
 	s.AddPrompt(healthCheckPrompt, func(ctx context.Context, req mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
 		slog.InfoContext(ctx, "Executing health check prompt")
@@ -208,14 +196,8 @@ func RegisterPrompts(s *server.MCPServer, kafkaClient kafka.KafkaClient) {
 	// Register under-replicated partitions prompt
 	underReplicatedPrompt := mcp.Prompt{
 		Name:        "kafka_under_replicated_partitions",
-		Description: "List topics and partitions where ISR count is less than replication factor",
-		Arguments: []mcp.PromptArgument{
-			{
-				Name:        "cluster",
-				Description: "The Kafka cluster name",
-				Required:    true,
-			},
-		},
+		Description: "Identifies and analyzes partitions with insufficient replication, where the in-sync replica (ISR) count is less than the configured replication factor. Provides detailed reporting on affected topics, missing replicas, potential causes, and step-by-step troubleshooting recommendations to restore data durability.",
+		Arguments: []mcp.PromptArgument{},
 	}
 	s.AddPrompt(underReplicatedPrompt, func(ctx context.Context, req mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
 		slog.InfoContext(ctx, "Executing under-replicated partitions prompt")
@@ -314,16 +296,11 @@ func RegisterPrompts(s *server.MCPServer, kafkaClient kafka.KafkaClient) {
 	// Register consumer lag report prompt
 	consumerLagPrompt := mcp.Prompt{
 		Name:        "kafka_consumer_lag_report",
-		Description: "Provide a detailed report on consumer lag across all consumer groups",
+		Description: "Generates a comprehensive consumer lag analysis report covering all consumer groups in the cluster. Analyzes group states, member assignments, partition lag metrics, and provides performance optimization recommendations. Supports customizable lag thresholds for alerting and includes actionable insights for scaling decisions.",
 		Arguments: []mcp.PromptArgument{
 			{
-				Name:        "cluster",
-				Description: "The Kafka cluster name",
-				Required:    true,
-			},
-			{
 				Name:        "threshold",
-				Description: "Lag threshold for highlighting high lag (default: 1000)",
+				Description: "Message lag threshold for highlighting consumer groups with performance issues (default: 1000 messages). Groups exceeding this threshold will be flagged for attention.",
 				Required:    false,
 			},
 		},
@@ -333,12 +310,11 @@ func RegisterPrompts(s *server.MCPServer, kafkaClient kafka.KafkaClient) {
 
 		// Get threshold from arguments
 		var lagThreshold int64 = 1000 // Default threshold
-		if thresholdArg, ok := req.Params.Arguments["threshold"]; ok && thresholdArg != "" {
-			threshold, err := strconv.ParseInt(thresholdArg, 10, 64)
-			if err == nil && threshold >= 0 {
+		if thresholdStr, ok := req.Params.Arguments["threshold"]; ok && thresholdStr != "" {
+			if threshold, err := strconv.ParseInt(thresholdStr, 10, 64); err == nil && threshold >= 0 {
 				lagThreshold = threshold
 			} else {
-				slog.WarnContext(ctx, "Invalid lag threshold, using default", "threshold", thresholdArg, "default", lagThreshold)
+				slog.WarnContext(ctx, "Invalid lag threshold, using default", "threshold", thresholdStr, "default", lagThreshold)
 			}
 		}
 
