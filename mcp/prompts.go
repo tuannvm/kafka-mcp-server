@@ -310,12 +310,11 @@ func RegisterPrompts(s *server.MCPServer, kafkaClient kafka.KafkaClient) {
 
 		// Get threshold from arguments
 		var lagThreshold int64 = 1000 // Default threshold
-		if thresholdArg, ok := req.Params.Arguments["threshold"]; ok && thresholdArg != "" {
-			threshold, err := strconv.ParseInt(thresholdArg, 10, 64)
-			if err == nil && threshold >= 0 {
+		if thresholdStr, ok := req.Params.Arguments["threshold"]; ok && thresholdStr != "" {
+			if threshold, err := strconv.ParseInt(thresholdStr, 10, 64); err == nil && threshold >= 0 {
 				lagThreshold = threshold
 			} else {
-				slog.WarnContext(ctx, "Invalid lag threshold, using default", "threshold", thresholdArg, "default", lagThreshold)
+				slog.WarnContext(ctx, "Invalid lag threshold, using default", "threshold", thresholdStr, "default", lagThreshold)
 			}
 		}
 

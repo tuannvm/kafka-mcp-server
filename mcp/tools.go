@@ -24,10 +24,9 @@ func RegisterTools(s *server.MCPServer, kafkaClient kafka.KafkaClient, cfg confi
 	)
 
 	s.AddTool(produceTool, func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) { // Use mcp.CallToolRequest, mcp.CallToolResult
-		// Access parameters via req.Params.Arguments
-		topic, _ := req.Params.Arguments["topic"].(string)
-		keyArg, _ := req.Params.Arguments["key"].(string)
-		value, _ := req.Params.Arguments["value"].(string)
+		topic := req.GetString("topic", "")
+		keyArg := req.GetString("key", "")
+		value := req.GetString("value", "")
 
 		slog.InfoContext(ctx, "Executing produce_message tool", "topic", topic, "key", keyArg)
 
@@ -49,25 +48,13 @@ func RegisterTools(s *server.MCPServer, kafkaClient kafka.KafkaClient, cfg confi
 	)
 
 	s.AddTool(consumeTool, func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) { // Use mcp.CallToolRequest, mcp.CallToolResult
-		topicsArg, _ := req.Params.Arguments["topics"].([]interface{})
+		topicsArg := req.GetStringSlice("topics", []string{})
 		
 		// Handle max_messages parameter with default
-		maxMessages := 10 // Default value
-		if maxMessagesArg, exists := req.Params.Arguments["max_messages"]; exists {
-			if val, ok := maxMessagesArg.(float64); ok && val > 0 {
-				maxMessages = int(val)
-			}
-		}
+		maxMessages := int(req.GetFloat("max_messages", 10))
 
-		// Convert []interface{} to []string for topics
-		topics := make([]string, 0, len(topicsArg))
-		for _, t := range topicsArg {
-			if topicStr, ok := t.(string); ok {
-				topics = append(topics, topicStr)
-			} else {
-				slog.WarnContext(ctx, "Invalid topic type in request", "topic", t)
-			}
-		}
+		// Use the topics directly since GetStringSlice returns []string
+		topics := topicsArg
 
 		if len(topics) == 0 {
 			return mcp.NewToolResultError("No valid topics provided."), nil // Use mcp.NewToolResultError
@@ -125,9 +112,9 @@ func RegisterTools(s *server.MCPServer, kafkaClient kafka.KafkaClient, cfg confi
 	)
 
 	s.AddTool(describeTopicTool, func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		topicName, ok := req.Params.Arguments["topic_name"].(string)
-		if !ok || topicName == "" {
-			return mcp.NewToolResultError("Missing or invalid required parameter: topic_name (string)"), nil
+		topicName := req.GetString("topic_name", "")
+		if topicName == "" {
+			return mcp.NewToolResultError("Missing required parameter: topic_name"), nil
 		}
 
 		slog.InfoContext(ctx, "Executing describe_topic tool", "topic", topicName)
@@ -190,18 +177,13 @@ func RegisterTools(s *server.MCPServer, kafkaClient kafka.KafkaClient, cfg confi
 	)
 
 	s.AddTool(describeGroupTool, func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		groupID, ok := req.Params.Arguments["group_id"].(string)
-		if !ok || groupID == "" {
-			return mcp.NewToolResultError("Missing or invalid required parameter: group_id (string)"), nil
+		groupID := req.GetString("group_id", "")
+		if groupID == "" {
+			return mcp.NewToolResultError("Missing required parameter: group_id"), nil
 		}
 
 		// Handle default for include_offsets
-		includeOffsets := false // Default value
-		if includeOffsetsArg, exists := req.Params.Arguments["include_offsets"]; exists {
-			if val, ok := includeOffsetsArg.(bool); ok {
-				includeOffsets = val
-			}
-		}
+		includeOffsets := req.GetBool("include_offsets", false)
 
 		slog.InfoContext(ctx, "Executing describe_consumer_group tool", "group", groupID, "includeOffsets", includeOffsets)
 
@@ -235,26 +217,16 @@ func RegisterTools(s *server.MCPServer, kafkaClient kafka.KafkaClient, cfg confi
 	)
 
 	s.AddTool(describeConfigsTool, func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		resourceTypeStr, ok := req.Params.Arguments["resource_type"].(string)
-		if !ok || (resourceTypeStr != "topic" && resourceTypeStr != "broker") {
+		resourceTypeStr := req.GetString("resource_type", "")
+		if resourceTypeStr != "topic" && resourceTypeStr != "broker" {
 			return mcp.NewToolResultError("Missing or invalid required parameter: resource_type (must be 'topic' or 'broker')"), nil
 		}
-		resourceName, ok := req.Params.Arguments["resource_name"].(string)
-		if !ok || resourceName == "" {
-			return mcp.NewToolResultError("Missing or invalid required parameter: resource_name (string)"), nil
+		resourceName := req.GetString("resource_name", "")
+		if resourceName == "" {
+			return mcp.NewToolResultError("Missing required parameter: resource_name"), nil
 		}
 
-		var configKeys []string
-		if keysArg, exists := req.Params.Arguments["config_keys"].([]interface{}); exists {
-			configKeys = make([]string, 0, len(keysArg))
-			for _, k := range keysArg {
-				if keyStr, ok := k.(string); ok {
-					configKeys = append(configKeys, keyStr)
-				} else {
-					slog.WarnContext(ctx, "Invalid config key type in request", "key", k)
-				}
-			}
-		}
+		configKeys := req.GetStringSlice("config_keys", []string{})
 
 		// Map string type to ConfigResourceType
 		resourceType, err := kafkaClient.StringToResourceType(resourceTypeStr)
