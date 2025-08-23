@@ -17,10 +17,10 @@ import (
 func RegisterTools(s *server.MCPServer, kafkaClient kafka.KafkaClient, cfg config.Config) {
 	// --- produce_message tool definition and handler ---
 	produceTool := mcp.NewTool("produce_message",
-		mcp.WithDescription("Produce a message to a Kafka topic"),
-		mcp.WithString("topic", mcp.Required(), mcp.Description("Target Kafka topic name")),
-		mcp.WithString("key", mcp.Description("Optional message key (string)")),
-		mcp.WithString("value", mcp.Required(), mcp.Description("Message value (string)")),
+		mcp.WithDescription("Produces a single message to a specified Kafka topic. Use this tool when you need to send data, events, or notifications to a Kafka topic. The message can include an optional key for partitioning and routing."),
+		mcp.WithString("topic", mcp.Required(), mcp.Description("The name of the Kafka topic to send the message to. Must be an existing topic name.")),
+		mcp.WithString("key", mcp.Description("Optional message key used for partitioning. Messages with the same key will be sent to the same partition. Leave empty for random partitioning.")),
+		mcp.WithString("value", mcp.Required(), mcp.Description("The message content/payload to send. Can be plain text, JSON, or any string data.")),
 	)
 
 	s.AddTool(produceTool, func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) { // Use mcp.CallToolRequest, mcp.CallToolResult
@@ -42,16 +42,22 @@ func RegisterTools(s *server.MCPServer, kafkaClient kafka.KafkaClient, cfg confi
 	})
 
 	// --- consume_messages tool definition and handler ---
-	// NOTE: There seem to be compilation errors here related to mcp.WithInteger/mcp.Default
 	consumeTool := mcp.NewTool("consume_messages",
-		mcp.WithDescription("Consume a batch of messages from Kafka topics."),
-		mcp.WithArray("topics", mcp.Required(), mcp.Description("List of Kafka topics to consume from.")),
-		// mcp.WithInteger("max_messages", mcp.Default(10), mcp.Description("Maximum number of messages to consume in one batch.")), // Potential error source
+		mcp.WithDescription("Consumes messages from one or more Kafka topics in a single batch operation. Use this tool to retrieve recent messages for analysis, monitoring, or processing. Messages are consumed from the latest available offsets."),
+		mcp.WithArray("topics", mcp.Required(), mcp.Description("Array of Kafka topic names to consume messages from. Each topic must exist in the cluster.")),
+		mcp.WithNumber("max_messages", mcp.Description("Maximum number of messages to consume across all topics (default: 10). Use higher values for bulk processing, lower values for quick sampling.")),
 	)
 
 	s.AddTool(consumeTool, func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) { // Use mcp.CallToolRequest, mcp.CallToolResult
 		topicsArg, _ := req.Params.Arguments["topics"].([]interface{})
-		// maxMessagesArg, _ := req.Params.Arguments["max_messages"].(int64) // Related to potential error above
+		
+		// Handle max_messages parameter with default
+		maxMessages := 10 // Default value
+		if maxMessagesArg, exists := req.Params.Arguments["max_messages"]; exists {
+			if val, ok := maxMessagesArg.(float64); ok && val > 0 {
+				maxMessages = int(val)
+			}
+		}
 
 		// Convert []interface{} to []string for topics
 		topics := make([]string, 0, len(topicsArg))
@@ -66,12 +72,6 @@ func RegisterTools(s *server.MCPServer, kafkaClient kafka.KafkaClient, cfg confi
 		if len(topics) == 0 {
 			return mcp.NewToolResultError("No valid topics provided."), nil // Use mcp.NewToolResultError
 		}
-
-		// maxMessages := int(maxMessagesArg) // Convert to int for client method
-		// if maxMessages <= 0 {
-		// 	maxMessages = 1 // Ensure at least 1 message is requested if not positive
-		// }
-		maxMessages := 10 // Hardcode default for now due to potential error
 
 		slog.InfoContext(ctx, "Executing consume_messages tool", "topics", topics, "maxMessages", maxMessages)
 
@@ -97,7 +97,7 @@ func RegisterTools(s *server.MCPServer, kafkaClient kafka.KafkaClient, cfg confi
 
 	// --- NEW: List Brokers Tool ---
 	listBrokersTool := mcp.NewTool("list_brokers",
-		mcp.WithDescription("Lists the configured Kafka broker addresses."),
+		mcp.WithDescription("Lists all configured Kafka broker addresses that the server is connecting to. Use this tool to verify connectivity and understand the cluster topology. Returns the broker hostnames and ports as configured."),
 		// No parameters needed
 	)
 
@@ -120,8 +120,8 @@ func RegisterTools(s *server.MCPServer, kafkaClient kafka.KafkaClient, cfg confi
 
 	// --- NEW: Describe Topic Tool ---
 	describeTopicTool := mcp.NewTool("describe_topic",
-		mcp.WithDescription("Provides detailed metadata for a specific Kafka topic, including partition leaders, replicas, and ISRs."),
-		mcp.WithString("topic_name", mcp.Required(), mcp.Description("The name of the topic to describe.")),
+		mcp.WithDescription("Provides comprehensive metadata and configuration details for a specific Kafka topic. Returns information about partitions, replication factors, leaders, replicas, and in-sync replicas (ISRs). Use this tool to understand topic structure, troubleshoot replication issues, or verify topic configuration."),
+		mcp.WithString("topic_name", mcp.Required(), mcp.Description("The exact name of the Kafka topic to describe. Topic names are case-sensitive and must exist in the cluster.")),
 	)
 
 	s.AddTool(describeTopicTool, func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -155,7 +155,7 @@ func RegisterTools(s *server.MCPServer, kafkaClient kafka.KafkaClient, cfg confi
 
 	// --- NEW: List Consumer Groups Tool ---
 	listGroupsTool := mcp.NewTool("list_consumer_groups",
-		mcp.WithDescription("Enumerates active consumer groups known by the Kafka cluster."),
+		mcp.WithDescription("Enumerates all consumer groups known by the Kafka cluster, including their current states. Use this tool to discover active consumer applications, monitor consumer group health, or identify unused consumer groups. Returns group IDs, states, and error codes."),
 		// No parameters needed for this tool
 	)
 
@@ -184,10 +184,9 @@ func RegisterTools(s *server.MCPServer, kafkaClient kafka.KafkaClient, cfg confi
 
 	// --- NEW: Describe Consumer Group Tool ---
 	describeGroupTool := mcp.NewTool("describe_consumer_group",
-		mcp.WithDescription("Shows details for a specific consumer group, including state, members, and optionally partition offsets and lag."),
-		mcp.WithString("group_id", mcp.Required(), mcp.Description("The ID of the consumer group to describe.")),
-		// Define boolean without default; handle default in handler
-		mcp.WithBoolean("include_offsets", mcp.Description("Whether to include partition offset and lag information (default: false, can be slow).")),
+		mcp.WithDescription("Provides detailed information about a specific consumer group including its current state, active members, partition assignments, and optionally offset and lag information. Use this tool to troubleshoot consumer lag, monitor group membership, or analyze partition distribution across consumers."),
+		mcp.WithString("group_id", mcp.Required(), mcp.Description("The unique identifier of the consumer group to describe. Must be an existing consumer group registered with the cluster.")),
+		mcp.WithBoolean("include_offsets", mcp.Description("Whether to include detailed partition offset and lag information (default: false). Enabling this provides commit offsets, current lag, and end offsets but may be slower for groups with many partitions.")),
 	)
 
 	s.AddTool(describeGroupTool, func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -229,10 +228,10 @@ func RegisterTools(s *server.MCPServer, kafkaClient kafka.KafkaClient, cfg confi
 
 	// --- NEW: Describe Configs Tool ---
 	describeConfigsTool := mcp.NewTool("describe_configs",
-		mcp.WithDescription("Fetches configuration entries for a specific resource (topic or broker)."),
-		mcp.WithString("resource_type", mcp.Required(), mcp.Description("Type of resource ('topic' or 'broker').")),
-		mcp.WithString("resource_name", mcp.Required(), mcp.Description("Name of the topic or ID of the broker.")),
-		mcp.WithArray("config_keys", mcp.Description("Optional list of specific config keys to fetch. If empty, fetches all non-default configs.")),
+		mcp.WithDescription("Retrieves configuration settings for Kafka resources such as topics or brokers. Use this tool to examine retention policies, replication settings, segment sizes, cleanup policies, and other configuration parameters. Helps troubleshoot performance issues and verify configuration compliance."),
+		mcp.WithString("resource_type", mcp.Required(), mcp.Description("Type of Kafka resource to query. Must be either 'topic' (for topic-specific configs) or 'broker' (for broker-specific configs).")),
+		mcp.WithString("resource_name", mcp.Required(), mcp.Description("Name of the resource to describe. For topics: use the exact topic name. For brokers: use the broker ID (numeric string like '1', '2', etc.).")),
+		mcp.WithArray("config_keys", mcp.Description("Optional array of specific configuration keys to retrieve (e.g., ['retention.ms', 'segment.bytes']). If omitted, returns all non-default configuration values for the resource.")),
 	)
 
 	s.AddTool(describeConfigsTool, func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -287,7 +286,7 @@ func RegisterTools(s *server.MCPServer, kafkaClient kafka.KafkaClient, cfg confi
 
 	// --- NEW: Cluster Overview Tool ---
 	clusterOverviewTool := mcp.NewTool("cluster_overview",
-		mcp.WithDescription("Aggregates high-level cluster health data, such as controller, broker/topic/partition counts, and under-replicated/offline partitions."),
+		mcp.WithDescription("Provides a comprehensive health summary of the entire Kafka cluster including broker status, controller information, topic and partition counts, and replication health metrics. Use this tool for cluster monitoring, health checks, and getting a quick overview of cluster state and potential issues."),
 		// No parameters needed for this tool
 	)
 
@@ -329,7 +328,7 @@ func RegisterTools(s *server.MCPServer, kafkaClient kafka.KafkaClient, cfg confi
 
 	// --- list_topics tool definition and handler ---
 	listTopicsTool := mcp.NewTool("list_topics",
-		mcp.WithDescription("Retrieves all topic names along with partition counts and replication factors."),
+		mcp.WithDescription("Retrieves a complete list of all topics in the Kafka cluster along with their metadata including partition counts, replication factors, and internal topic flags. Use this tool to discover available topics, understand cluster topology, or inventory data streams in the cluster."),
 	)
 
 	s.AddTool(listTopicsTool, func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
