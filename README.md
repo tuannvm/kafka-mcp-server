@@ -26,6 +26,76 @@ The Kafka MCP Server bridges the gap between LLM models and Apache Kafka, allowi
 
 All through the standardized Model Context Protocol (MCP).
 
+## Architecture
+
+```mermaid
+graph TB
+    subgraph "MCP Client (AI Applications)"
+        A[Claude Desktop]
+        B[Cursor]
+        C[Windsurf]
+        D[ChatWise]
+    end
+    
+    subgraph "Kafka MCP Server"
+        E[MCP Protocol Handler]
+        F[Tools Registry]
+        G[Resources Registry]
+        H[Prompts Registry]
+        I[Kafka Client Wrapper]
+    end
+    
+    subgraph "Apache Kafka Cluster"
+        J[Broker 1]
+        K[Broker 2]
+        L[Broker 3]
+        M[Topics & Partitions]
+        N[Consumer Groups]
+    end
+    
+    A --> E
+    B --> E
+    C --> E
+    D --> E
+    
+    E --> F
+    E --> G
+    E --> H
+    
+    F --> I
+    G --> I
+    H --> I
+    
+    I --> J
+    I --> K
+    I --> L
+    
+    J --> M
+    K --> M
+    L --> M
+    
+    J --> N
+    K --> N
+    L --> N
+    
+    classDef client fill:#e1f5fe
+    classDef mcp fill:#f3e5f5
+    classDef kafka fill:#fff3e0
+    
+    class A,B,C,D client
+    class E,F,G,H,I mcp
+    class J,K,L,M,N kafka
+```
+
+**How it works:**
+1. **MCP Clients** (AI applications) connect to the Kafka MCP Server via stdio transport
+2. **MCP Server** exposes three types of capabilities:
+   - **Tools** - Direct Kafka operations (produce/consume messages, describe topics, etc.)
+   - **Resources** - Cluster health reports and diagnostics
+   - **Prompts** - Pre-configured workflows for common operations
+3. **Kafka Client Wrapper** handles all Kafka communication using the franz-go library
+4. **Apache Kafka Cluster** processes the actual message streaming and storage
+
 ![Tools](https://github.com/user-attachments/assets/c70e6ac6-0657-4c7e-814e-ecb18ab8c6ec)
 
 ![Prompts & Resources](https://github.com/user-attachments/assets/dd5f3165-200f-41ca-bd0a-4b02063a9c57)
@@ -43,7 +113,7 @@ All through the standardized Model Context Protocol (MCP).
 
 ### Prerequisites
 
-- Go 1.21 or later
+- Go 1.24 or later
 - Docker (for running integration tests)
 - Access to a Kafka cluster
 
@@ -75,7 +145,7 @@ git clone https://github.com/tuannvm/kafka-mcp-server.git
 cd kafka-mcp-server
 
 # Build the server
-go build -o kafka-mcp-server ./cmd/server
+go build -o kafka-mcp-server ./cmd
 ```
 
 ### MCP Client Integration
