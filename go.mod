@@ -7,7 +7,7 @@ require (
 	github.com/stretchr/testify v1.11.0
 	github.com/testcontainers/testcontainers-go/modules/kafka v0.39.0
 	github.com/twmb/franz-go v1.19.5
-	github.com/twmb/franz-go/pkg/kmsg v1.11.2
+	github.com/twmb/franz-go/pkg/kmsg v1.12.0
 )
 
 require (
