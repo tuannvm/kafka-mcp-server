@@ -6,8 +6,8 @@ require (
 	github.com/mark3labs/mcp-go v0.38.0
 	github.com/stretchr/testify v1.11.0
 	github.com/testcontainers/testcontainers-go/modules/kafka v0.39.0
-	github.com/twmb/franz-go v1.19.5
-	github.com/twmb/franz-go/pkg/kmsg v1.11.2
+	github.com/twmb/franz-go v1.20.0
+	github.com/twmb/franz-go/pkg/kmsg v1.12.0
 )
 
 require (
@@ -70,9 +70,9 @@ require (
 	go.opentelemetry.io/otel/sdk v1.35.0 // indirect
 	go.opentelemetry.io/otel/trace v1.35.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.5.0 // indirect
-	golang.org/x/crypto v0.38.0 // indirect
+	golang.org/x/crypto v0.43.0 // indirect
 	golang.org/x/mod v0.24.0 // indirect
-	golang.org/x/sys v0.36.0 // indirect
+	golang.org/x/sys v0.37.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250428153025-10db94c68c34 // indirect
 	google.golang.org/protobuf v1.36.6 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
