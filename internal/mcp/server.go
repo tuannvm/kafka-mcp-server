@@ -7,7 +7,7 @@ import (
 	"os"
 
 	"github.com/mark3labs/mcp-go/server"
-	"github.com/tuannvm/kafka-mcp-server/config"
+	"github.com/tuannvm/kafka-mcp-server/internal/config"
 )
 
 // NewMCPServer creates a new MCP server instance.

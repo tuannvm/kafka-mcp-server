@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go/modules/kafka"
-	"github.com/tuannvm/kafka-mcp-server/config"
+	"github.com/tuannvm/kafka-mcp-server/internal/config"
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 

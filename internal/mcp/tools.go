@@ -8,8 +8,8 @@ import (
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server" // Import directly without alias
-	"github.com/tuannvm/kafka-mcp-server/config"
-	"github.com/tuannvm/kafka-mcp-server/kafka"
+	"github.com/tuannvm/kafka-mcp-server/internal/config"
+	"github.com/tuannvm/kafka-mcp-server/internal/kafka"
 )
 
 // RegisterTools defines and registers MCP tools with the server.
