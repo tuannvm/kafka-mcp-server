@@ -1,5 +1,6 @@
 # Binaries
 kafka-mcp-server
+bin/
 
 # Go dependencies
 vendor/

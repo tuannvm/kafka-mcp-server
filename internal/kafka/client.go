@@ -8,7 +8,7 @@ import (
 
 	"os"
 
-	"github.com/tuannvm/kafka-mcp-server/config"
+	"github.com/tuannvm/kafka-mcp-server/internal/config"
 	"github.com/twmb/franz-go/pkg/kerr"
 	"github.com/twmb/franz-go/pkg/kgo"
 	"github.com/twmb/franz-go/pkg/kmsg"

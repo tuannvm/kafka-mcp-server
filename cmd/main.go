@@ -7,9 +7,9 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/tuannvm/kafka-mcp-server/config"
-	"github.com/tuannvm/kafka-mcp-server/kafka"
-	"github.com/tuannvm/kafka-mcp-server/mcp"
+	"github.com/tuannvm/kafka-mcp-server/internal/config"
+	"github.com/tuannvm/kafka-mcp-server/internal/kafka"
+	"github.com/tuannvm/kafka-mcp-server/internal/mcp"
 )
 
 // Version is set during build via -X ldflags
