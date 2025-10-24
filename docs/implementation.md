@@ -8,13 +8,13 @@ This document tracks the step-by-step implementation of OAuth 2.1 authentication
 
 ## Implementation Progress
 
-- [ ] Phase 1: Add Dependencies
-- [ ] Phase 2: Update Configuration (internal/config/config.go)
-- [ ] Phase 3: Add OAuth Helper Function (internal/mcp/server.go)
-- [ ] Phase 4: Refactor Main Entry Point (cmd/main.go)
-- [ ] Phase 5: Update Server Start Function (internal/mcp/server.go)
-- [ ] Phase 6: Update Documentation (CLAUDE.md)
-- [ ] Phase 7: Unit Tests
+- [x] Phase 1: Add Dependencies
+- [x] Phase 2: Update Configuration (internal/config/config.go)
+- [x] Phase 3: Add OAuth Helper Function (internal/mcp/server.go)
+- [x] Phase 4: Refactor Main Entry Point (cmd/main.go)
+- [x] Phase 5: Update Server Start Function (internal/mcp/server.go)
+- [x] Phase 6: Update Documentation (README.md, docs/oauth.md)
+- [x] Phase 7: Unit Tests
 - [ ] Phase 8: Integration Tests
 - [ ] Phase 9: Manual Testing
 - [ ] Phase 10: Security Review
@@ -988,27 +988,93 @@ cat .gitignore | grep -E "\\.env|\\.secret"
 - Provided detailed step-by-step instructions for all 10 phases
 - Included verification steps and test cases
 
-### Issues Encountered
-_(Add notes as you implement)_
+### 2025-10-23 - OAuth Implementation Completed
 
-**Example format:**
-```
-2025-01-XX - Build Error in Phase 3
-- Issue: Import path error for oauth-mcp-proxy
-- Solution: Used correct import path with mark3labs subpackage
-- Time spent: 15 minutes
-```
+**Phases Completed:**
+- ✅ Phase 1: Added oauth-mcp-proxy@v1.0.0 dependency
+- ✅ Phase 2: Extended Config struct with 11 OAuth fields (HTTP port, OAuth settings, OIDC config)
+- ✅ Phase 3: Implemented CreateOAuthOption() helper function
+- ✅ Phase 4: Refactored cmd/main.go to create OAuth option before MCPServer
+- ✅ Phase 5: Implemented HTTP transport with StreamableHTTPServer and graceful shutdown
+- ✅ Phase 6: Created comprehensive docs/oauth.md and updated README.md
+- ✅ Phase 7: Wrote 21 unit tests (6 config tests + 15 MCP server tests)
+
+**Test Results:**
+- All 21 tests passing (config + mcp packages)
+- Test coverage includes:
+  - Config parsing for all OAuth fields (native/proxy modes)
+  - CreateOAuthOption with various configurations
+  - HTTP server startup with/without OAuth
+  - Graceful shutdown verification
+  - Port conflict handling
+  - Multiple OAuth providers (HMAC, Okta, Google, Azure)
+  - Invalid configuration handling
+  - Edge cases (nil mux, unsupported transport, etc.)
+
+**Gemini 2.5 Pro Code Review:**
+- No critical issues found
+- Architecture validated as correct
+- All edge cases handled properly
+- Graceful shutdown enhancement implemented
+
+**Key Implementation Details:**
+- OAuth routes registered on mux before MCPServer creation
+- Token extraction via `oauth.CreateHTTPContextFunc()`
+- MCP endpoint exposed at `/mcp`
+- HTTP server uses context for 5-second graceful shutdown
+- Backwards compatible: STDIO mode unchanged
+
+### Issues Encountered
+
+**2025-10-23 - Unused Context Parameter**
+- **Issue**: ctx parameter in startHTTPServer was unused
+- **Solution**: Implemented graceful shutdown using context with 5-second timeout
+- **Impact**: Better production readiness, clean server shutdown on SIGINT/SIGTERM
+- **Time spent**: 10 minutes
+
+**2025-10-23 - Missing oauth-mcp-proxy in go.mod**
+- **Issue**: Initial build failed with "no required module provides package"
+- **Solution**: Ran `go get github.com/tuannvm/oauth-mcp-proxy@v1.0.0 && go mod tidy`
+- **Impact**: Dependencies properly resolved
+- **Time spent**: 2 minutes
 
 ### Decisions Made
-_(Document key architectural decisions)_
 
-**Example format:**
-```
-2025-01-XX - OAuth Option Architecture
-- Decision: Refactor main.go to create OAuth option before NewMCPServer
-- Rationale: Required by oauth-mcp-proxy@v1.0.0 API design
-- Impact: Major refactor to main.go but cleaner separation of concerns
-```
+**2025-10-23 - OAuth Option Architecture**
+- **Decision**: Refactor main.go to create OAuth option before NewMCPServer
+- **Rationale**: Required by oauth-mcp-proxy@v1.0.0 API - option must be passed at server creation
+- **Impact**: Major refactor to main.go but cleaner separation of concerns
+- **Alternative Considered**: Try to add OAuth after server creation - would not work with library API
+
+**2025-10-23 - Graceful Shutdown Implementation**
+- **Decision**: Use http.Server with context-based shutdown instead of http.ListenAndServe
+- **Rationale**: Gemini review identified unused ctx parameter; graceful shutdown best practice
+- **Impact**: Clean shutdown with 5-second timeout, proper resource cleanup
+- **Code Change**: Goroutine listens for ctx.Done() and calls httpServer.Shutdown()
+
+**2025-10-23 - Minimal OAuth Validation**
+- **Decision**: No config validation in application code, rely on oauth-mcp-proxy library
+- **Rationale**: Keep implementation minimal, library handles validation
+- **Impact**: Cleaner code, validation errors surface at runtime with clear messages from library
+- **Trade-off**: Could add validation for better error messages, but adds complexity
+
+**2025-10-23 - Documentation Strategy**
+- **Decision**: Create dedicated docs/oauth.md instead of putting everything in CLAUDE.md
+- **Rationale**: OAuth configuration is complex, deserves comprehensive standalone guide
+- **Impact**: Better user experience, easier to maintain, can reference from README
+- **Content**: Architecture diagrams, provider-specific guides, troubleshooting, security best practices
+
+**2025-10-23 - HMAC Provider JWTSecret Handling**
+- **Issue**: HMAC provider requires JWTSecret in both native and proxy modes
+- **Solution**: Set JWTSecret for HMAC provider regardless of mode, then conditionally for proxy mode
+- **Impact**: HMAC provider works correctly in native mode for local testing
+- **Code**: Added separate check: `if cfg.OAuthProvider == "hmac" { oauthConfig.JWTSecret = []byte(cfg.JWTSecret) }`
+
+**2025-10-23 - Provider Name Correction**
+- **Issue**: Documentation used "azuread" but library expects "azure"
+- **Solution**: Updated all docs and config comments to use "azure"
+- **Impact**: Tests pass, provider name matches library expectations
+- **Files**: config.go, oauth.md, README.md
 
 ---
 
