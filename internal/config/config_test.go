@@ -138,4 +138,108 @@ func TestLoadConfigDefaults(t *testing.T) {
 	if cfg.TLSInsecureSkipVerify {
 		t.Errorf("Expected default TLSInsecureSkipVerify false, got %v", cfg.TLSInsecureSkipVerify)
 	}
+	if cfg.HTTPPort != 8080 {
+		t.Errorf("Expected default HTTPPort 8080, got %d", cfg.HTTPPort)
+	}
+	if cfg.OAuthEnabled {
+		t.Errorf("Expected default OAuthEnabled false, got %v", cfg.OAuthEnabled)
+	}
+	if cfg.OAuthMode != "native" {
+		t.Errorf("Expected default OAuthMode native, got %s", cfg.OAuthMode)
+	}
+	if cfg.OAuthProvider != "okta" {
+		t.Errorf("Expected default OAuthProvider okta, got %s", cfg.OAuthProvider)
+	}
+}
+
+func TestLoadConfig_OAuthNativeMode(t *testing.T) {
+	os.Clearenv()
+	os.Setenv("OAUTH_ENABLED", "true")
+	os.Setenv("OAUTH_MODE", "native")
+	os.Setenv("OAUTH_PROVIDER", "okta")
+	os.Setenv("OAUTH_SERVER_URL", "https://localhost:8080")
+	os.Setenv("OIDC_ISSUER", "https://company.okta.com")
+	os.Setenv("OIDC_AUDIENCE", "api://mcp-server")
+	defer os.Clearenv()
+
+	cfg := LoadConfig()
+
+	if !cfg.OAuthEnabled {
+		t.Errorf("Expected OAuthEnabled true, got %v", cfg.OAuthEnabled)
+	}
+	if cfg.OAuthMode != "native" {
+		t.Errorf("Expected OAuthMode native, got %s", cfg.OAuthMode)
+	}
+	if cfg.OAuthProvider != "okta" {
+		t.Errorf("Expected OAuthProvider okta, got %s", cfg.OAuthProvider)
+	}
+	if cfg.OAuthServerURL != "https://localhost:8080" {
+		t.Errorf("Expected OAuthServerURL https://localhost:8080, got %s", cfg.OAuthServerURL)
+	}
+	if cfg.OIDCIssuer != "https://company.okta.com" {
+		t.Errorf("Expected OIDCIssuer https://company.okta.com, got %s", cfg.OIDCIssuer)
+	}
+	if cfg.OIDCAudience != "api://mcp-server" {
+		t.Errorf("Expected OIDCAudience api://mcp-server, got %s", cfg.OIDCAudience)
+	}
+	if cfg.OIDCClientID != "" {
+		t.Errorf("Expected OIDCClientID empty in native mode, got %s", cfg.OIDCClientID)
+	}
+}
+
+func TestLoadConfig_OAuthProxyMode(t *testing.T) {
+	os.Clearenv()
+	os.Setenv("OAUTH_ENABLED", "true")
+	os.Setenv("OAUTH_MODE", "proxy")
+	os.Setenv("OAUTH_PROVIDER", "google")
+	os.Setenv("OIDC_CLIENT_ID", "client-id")
+	os.Setenv("OIDC_CLIENT_SECRET", "client-secret")
+	os.Setenv("OAUTH_REDIRECT_URIS", "http://localhost:8080/callback")
+	os.Setenv("JWT_SECRET", "super-secret-key")
+	defer os.Clearenv()
+
+	cfg := LoadConfig()
+
+	if cfg.OAuthMode != "proxy" {
+		t.Errorf("Expected OAuthMode proxy, got %s", cfg.OAuthMode)
+	}
+	if cfg.OAuthProvider != "google" {
+		t.Errorf("Expected OAuthProvider google, got %s", cfg.OAuthProvider)
+	}
+	if cfg.OIDCClientID != "client-id" {
+		t.Errorf("Expected OIDCClientID client-id, got %s", cfg.OIDCClientID)
+	}
+	if cfg.OIDCClientSecret != "client-secret" {
+		t.Errorf("Expected OIDCClientSecret client-secret, got %s", cfg.OIDCClientSecret)
+	}
+	if cfg.OAuthRedirectURIs != "http://localhost:8080/callback" {
+		t.Errorf("Expected OAuthRedirectURIs http://localhost:8080/callback, got %s", cfg.OAuthRedirectURIs)
+	}
+	if cfg.JWTSecret != "super-secret-key" {
+		t.Errorf("Expected JWTSecret super-secret-key, got %s", cfg.JWTSecret)
+	}
+}
+
+func TestLoadConfig_HTTPPortCustom(t *testing.T) {
+	os.Clearenv()
+	os.Setenv("MCP_HTTP_PORT", "9090")
+	defer os.Clearenv()
+
+	cfg := LoadConfig()
+
+	if cfg.HTTPPort != 9090 {
+		t.Errorf("Expected HTTPPort 9090, got %d", cfg.HTTPPort)
+	}
+}
+
+func TestLoadConfig_HTTPPortInvalid(t *testing.T) {
+	os.Clearenv()
+	os.Setenv("MCP_HTTP_PORT", "invalid")
+	defer os.Clearenv()
+
+	cfg := LoadConfig()
+
+	if cfg.HTTPPort != 8080 {
+		t.Errorf("Expected HTTPPort to fallback to 8080, got %d", cfg.HTTPPort)
+	}
 }
