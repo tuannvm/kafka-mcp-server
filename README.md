@@ -88,13 +88,17 @@ graph TB
 ```
 
 **How it works:**
-1. **MCP Clients** (AI applications) connect to the Kafka MCP Server via stdio transport
+1. **MCP Clients** (AI applications) connect to the Kafka MCP Server via stdio or HTTP transport
 2. **MCP Server** exposes three types of capabilities:
    - **Tools** - Direct Kafka operations (produce/consume messages, describe topics, etc.)
    - **Resources** - Cluster health reports and diagnostics
    - **Prompts** - Pre-configured workflows for common operations
 3. **Kafka Client Wrapper** handles all Kafka communication using the franz-go library
 4. **Apache Kafka Cluster** processes the actual message streaming and storage
+
+**Transport Modes:**
+- **STDIO**: Default mode, ideal for local MCP clients (Claude Desktop, Cursor, etc.)
+- **HTTP**: Enables remote access with optional OAuth 2.1 authentication
 
 ![Tools](https://github.com/user-attachments/assets/c70e6ac6-0657-4c7e-814e-ecb18ab8c6ec)
 
@@ -103,7 +107,11 @@ graph TB
 ## Key Features
 
 - **Kafka Integration**: Implementation of common Kafka operations via MCP
-- **Security**: Support for SASL (PLAIN, SCRAM-SHA-256, SCRAM-SHA-512) and TLS authentication
+- **Security**:
+  - Support for SASL (PLAIN, SCRAM-SHA-256, SCRAM-SHA-512) and TLS authentication
+  - OAuth 2.1 authentication for HTTP transport (Native and Proxy modes)
+  - Support for Okta, Google, Azure AD, and HMAC providers
+- **Flexible Transport**: STDIO for local clients, HTTP for remote access
 - **Error Handling**: Error handling with meaningful feedback
 - **Configuration Options**: Customizable for different environments
 - **Pre-Configured Prompts**: Set of prompts for common Kafka operations
@@ -364,16 +372,44 @@ The server can be configured using the following environment variables:
 | `KAFKA_TLS_ENABLE` | Enable TLS for Kafka connection (`true` or `false`) | `false` |
 | `KAFKA_TLS_INSECURE_SKIP_VERIFY` | Skip TLS certificate verification (`true` or `false`) | `false` |
 
-> **Security Note:** When using `KAFKA_TLS_INSECURE_SKIP_VERIFY=true`, the server will skip TLS certificate verification. This should only be used in development or testing environments, or when using self-signed certificates.
+### OAuth 2.1 Configuration (HTTP Transport Only)
+
+When using HTTP transport (`MCP_TRANSPORT=http`), OAuth 2.1 authentication can be enabled:
+
+| Variable | Description | Default | Required |
+| :------- | :---------- | :------ | :------- |
+| `MCP_HTTP_PORT` | HTTP server port | `8080` | No |
+| `OAUTH_ENABLED` | Enable OAuth 2.1 authentication | `false` | No |
+| `OAUTH_MODE` | OAuth mode: `native` or `proxy` | `native` | No |
+| `OAUTH_PROVIDER` | Provider: `hmac`, `okta`, `google`, `azure` | `okta` | No |
+| `OAUTH_SERVER_URL` | Full MCP server URL (e.g., `https://localhost:8080`) | - | When OAuth enabled |
+| `OIDC_ISSUER` | OAuth issuer URL | - | When OAuth enabled |
+| `OIDC_AUDIENCE` | OAuth audience | - | When OAuth enabled |
+| `OIDC_CLIENT_ID` | OAuth client ID | - | Proxy mode only |
+| `OIDC_CLIENT_SECRET` | OAuth client secret | - | Proxy mode only |
+| `OAUTH_REDIRECT_URIS` | Comma-separated redirect URIs | - | Proxy mode only |
+| `JWT_SECRET` | JWT signing secret | - | Proxy mode only |
+
+**For detailed OAuth setup and examples, see [docs/oauth.md](docs/oauth.md).**
+
+> **Security Notes:**
+> - When using `KAFKA_TLS_INSECURE_SKIP_VERIFY=true`, the server will skip TLS certificate verification. This should only be used in development or testing environments, or when using self-signed certificates.
+> - OAuth is only available when using HTTP transport. STDIO transport does not support OAuth.
+> - Always use HTTPS in production when OAuth is enabled.
 
 ## Security Considerations
 
 The server is designed with enterprise-grade security in mind:
 
-- **Authentication**: Full support for SASL PLAIN, SCRAM-SHA-256, and SCRAM-SHA-512
+- **Authentication**:
+  - Kafka: Full support for SASL PLAIN, SCRAM-SHA-256, and SCRAM-SHA-512
+  - MCP Server: OAuth 2.1 authentication for HTTP transport (Okta, Google, Azure AD, HMAC)
 - **Encryption**: TLS support for secure communication with Kafka brokers
 - **Input Validation**: Thorough validation of all user inputs to prevent injection attacks
 - **Error Handling**: Secure error handling that doesn't expose sensitive information
+- **Token Security**: Bearer token validation with 5-minute caching for OAuth-protected endpoints
+
+For OAuth security best practices, see [docs/oauth.md](docs/oauth.md).
 
 ## Development
 
