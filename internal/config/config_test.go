@@ -154,12 +154,12 @@ func TestLoadConfigDefaults(t *testing.T) {
 
 func TestLoadConfig_OAuthNativeMode(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("OAUTH_ENABLED", "true")
-	os.Setenv("OAUTH_MODE", "native")
-	os.Setenv("OAUTH_PROVIDER", "okta")
-	os.Setenv("OAUTH_SERVER_URL", "https://localhost:8080")
-	os.Setenv("OIDC_ISSUER", "https://company.okta.com")
-	os.Setenv("OIDC_AUDIENCE", "api://mcp-server")
+	_ = os.Setenv("OAUTH_ENABLED", "true")
+	_ = os.Setenv("OAUTH_MODE", "native")
+	_ = os.Setenv("OAUTH_PROVIDER", "okta")
+	_ = os.Setenv("OAUTH_SERVER_URL", "https://localhost:8080")
+	_ = os.Setenv("OIDC_ISSUER", "https://company.okta.com")
+	_ = os.Setenv("OIDC_AUDIENCE", "api://mcp-server")
 	defer os.Clearenv()
 
 	cfg := LoadConfig()
@@ -189,13 +189,13 @@ func TestLoadConfig_OAuthNativeMode(t *testing.T) {
 
 func TestLoadConfig_OAuthProxyMode(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("OAUTH_ENABLED", "true")
-	os.Setenv("OAUTH_MODE", "proxy")
-	os.Setenv("OAUTH_PROVIDER", "google")
-	os.Setenv("OIDC_CLIENT_ID", "client-id")
-	os.Setenv("OIDC_CLIENT_SECRET", "client-secret")
-	os.Setenv("OAUTH_REDIRECT_URIS", "http://localhost:8080/callback")
-	os.Setenv("JWT_SECRET", "super-secret-key")
+	_ = os.Setenv("OAUTH_ENABLED", "true")
+	_ = os.Setenv("OAUTH_MODE", "proxy")
+	_ = os.Setenv("OAUTH_PROVIDER", "google")
+	_ = os.Setenv("OIDC_CLIENT_ID", "client-id")
+	_ = os.Setenv("OIDC_CLIENT_SECRET", "client-secret")
+	_ = os.Setenv("OAUTH_REDIRECT_URIS", "http://localhost:8080/callback")
+	_ = os.Setenv("JWT_SECRET", "super-secret-key")
 	defer os.Clearenv()
 
 	cfg := LoadConfig()
@@ -222,7 +222,7 @@ func TestLoadConfig_OAuthProxyMode(t *testing.T) {
 
 func TestLoadConfig_HTTPPortCustom(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("MCP_HTTP_PORT", "9090")
+	_ = os.Setenv("MCP_HTTP_PORT", "9090")
 	defer os.Clearenv()
 
 	cfg := LoadConfig()
@@ -234,7 +234,7 @@ func TestLoadConfig_HTTPPortCustom(t *testing.T) {
 
 func TestLoadConfig_HTTPPortInvalid(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("MCP_HTTP_PORT", "invalid")
+	_ = os.Setenv("MCP_HTTP_PORT", "invalid")
 	defer os.Clearenv()
 
 	cfg := LoadConfig()

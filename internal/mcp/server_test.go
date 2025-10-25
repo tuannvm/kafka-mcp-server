@@ -228,7 +228,7 @@ func TestStartHTTPServer_WithoutOAuth(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to connect to MCP endpoint: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode == 0 {
 		t.Error("Expected valid HTTP response from /mcp endpoint")
@@ -292,7 +292,7 @@ func TestStartHTTPServer_WithOAuth_HMAC(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to connect to OAuth metadata endpoint: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("Expected status 200 for OAuth metadata endpoint, got %d", resp.StatusCode)
@@ -302,7 +302,7 @@ func TestStartHTTPServer_WithOAuth_HMAC(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to connect to MCP endpoint: %v", err)
 	}
-	defer resp2.Body.Close()
+	defer func() { _ = resp2.Body.Close() }()
 
 	cancel()
 
@@ -429,7 +429,7 @@ func TestStartHTTPServer_PortConflict(t *testing.T) {
 	port := 18084
 
 	go func() {
-		http.ListenAndServe(fmt.Sprintf(":%d", port), http.NewServeMux())
+		_ = http.ListenAndServe(fmt.Sprintf(":%d", port), http.NewServeMux())
 	}()
 	time.Sleep(100 * time.Millisecond)
 
