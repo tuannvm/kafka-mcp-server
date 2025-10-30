@@ -56,7 +56,7 @@ func RegisterTools(s *server.MCPServer, kafkaClient kafka.KafkaClient, cfg confi
 	// --- consume_messages tool definition and handler ---
 	consumeTool := mcp.NewTool("consume_messages",
 		mcp.WithDescription("Consumes messages from one or more Kafka topics in a single batch operation. Use this tool to retrieve recent messages for analysis, monitoring, or processing. Messages are consumed from the latest available offsets."),
-		mcp.WithArray("topics", mcp.Required(), mcp.Description("Array of Kafka topic names to consume messages from. Each topic must exist in the cluster.")),
+		mcp.WithArray("topics", mcp.Required(), mcp.Description("Array of Kafka topic names to consume messages from. Each topic must exist in the cluster."), mcp.Items(map[string]any{"type": "string"})),
 		mcp.WithNumber("max_messages", mcp.Description("Maximum number of messages to consume across all topics (default: 10). Use higher values for bulk processing, lower values for quick sampling.")),
 	)
 
@@ -226,7 +226,7 @@ func RegisterTools(s *server.MCPServer, kafkaClient kafka.KafkaClient, cfg confi
 		mcp.WithDescription("Retrieves configuration settings for Kafka resources such as topics or brokers. Use this tool to examine retention policies, replication settings, segment sizes, cleanup policies, and other configuration parameters. Helps troubleshoot performance issues and verify configuration compliance."),
 		mcp.WithString("resource_type", mcp.Required(), mcp.Description("Type of Kafka resource to query. Must be either 'topic' (for topic-specific configs) or 'broker' (for broker-specific configs).")),
 		mcp.WithString("resource_name", mcp.Required(), mcp.Description("Name of the resource to describe. For topics: use the exact topic name. For brokers: use the broker ID (numeric string like '1', '2', etc.).")),
-		mcp.WithArray("config_keys", mcp.Description("Optional array of specific configuration keys to retrieve (e.g., ['retention.ms', 'segment.bytes']). If omitted, returns all non-default configuration values for the resource.")),
+		mcp.WithArray("config_keys", mcp.Description("Optional array of specific configuration keys to retrieve (e.g., ['retention.ms', 'segment.bytes']). If omitted, returns all non-default configuration values for the resource."), mcp.Items(map[string]any{"type": "string"})),
 	)
 
 	s.AddTool(describeConfigsTool, func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
