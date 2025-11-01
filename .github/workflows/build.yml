@@ -21,7 +21,7 @@ permissions:
   pull-requests: read
 
 env:
-  GO_VERSION: "1.24"
+  GO_VERSION: "1.24.9"
   REGISTRY: ghcr.io
 
 jobs:
