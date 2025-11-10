@@ -6,7 +6,7 @@ require (
 	github.com/mark3labs/mcp-go v0.42.0
 	github.com/stretchr/testify v1.11.0
 	github.com/testcontainers/testcontainers-go/modules/kafka v0.39.0
-	github.com/tuannvm/oauth-mcp-proxy v1.0.0
+	github.com/tuannvm/oauth-mcp-proxy v1.0.1
 	github.com/twmb/franz-go v1.20.2
 	github.com/twmb/franz-go/pkg/kmsg v1.12.0
 )
