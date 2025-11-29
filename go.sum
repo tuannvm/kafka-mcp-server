@@ -162,8 +162,8 @@ github.com/tklauser/go-sysconf v0.3.12 h1:0QaGUFOdQaIVdPgfITYzaTegZvdCjmYO52cSFA
 github.com/tklauser/go-sysconf v0.3.12/go.mod h1:Ho14jnntGE1fpdOqQEEaiKRpvIavV0hSfmBq8nJbHYI=
 github.com/tklauser/numcpus v0.6.1 h1:ng9scYS7az0Bk4OZLvrNXNSAO2Pxr1XXRAPyjhIx+Fk=
 github.com/tklauser/numcpus v0.6.1/go.mod h1:1XfjsgE2zo8GVw7POkMbHENHzVg3GzmoZ9fESEdAacY=
-github.com/tuannvm/oauth-mcp-proxy v1.0.0 h1:n+CVRYwJQIBu0TsP7PxUhFyfSY1a3WGWj3NAlFDbhWY=
-github.com/tuannvm/oauth-mcp-proxy v1.0.0/go.mod h1:k3PttQSZCkFBypAEFSyC4BaXpn8y79KBuE56v8yH3qo=
+github.com/tuannvm/oauth-mcp-proxy v1.0.1 h1:h7x0VNFqKUWw3ynHo2qPTWotWa1OOxMJp3CXuIrl9MI=
+github.com/tuannvm/oauth-mcp-proxy v1.0.1/go.mod h1:6wx8iLtCWYTCKlINZYjBs/NdYHrszdYfiuBQRpUt4vY=
 github.com/twmb/franz-go v1.20.2 h1:CiwhyKZHW6vqSHJkh+RTxFAJkio0jBjM/JQhx/HZ72A=
 github.com/twmb/franz-go v1.20.2/go.mod h1:YCnepDd4gl6vdzG03I5Wa57RnCTIC6DVEyMpDX/J8UA=
 github.com/twmb/franz-go/pkg/kmsg v1.12.0 h1:CbatD7ers1KzDNgJqPbKOq0Bz/WLBdsTH75wgzeVaPc=
