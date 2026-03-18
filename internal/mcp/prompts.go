@@ -19,7 +19,7 @@ func RegisterPrompts(s *server.MCPServer, kafkaClient kafka.KafkaClient) {
 	clusterOverviewPrompt := mcp.Prompt{
 		Name:        "kafka_cluster_overview",
 		Description: "Generates a comprehensive, human-readable summary of Kafka cluster health including broker counts, controller status, topic/partition metrics, and replication health. Perfect for status reports, monitoring dashboards, and quick cluster assessments.",
-		Arguments: []mcp.PromptArgument{},
+		Arguments:   []mcp.PromptArgument{},
 	}
 	s.AddPrompt(clusterOverviewPrompt, func(ctx context.Context, req mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
 		slog.InfoContext(ctx, "Executing cluster overview prompt")
@@ -81,7 +81,7 @@ func RegisterPrompts(s *server.MCPServer, kafkaClient kafka.KafkaClient) {
 	healthCheckPrompt := mcp.Prompt{
 		Name:        "kafka_health_check",
 		Description: "Performs a comprehensive health assessment of the Kafka cluster with detailed analysis of broker availability, controller status, partition health, and consumer group performance. Provides actionable recommendations for troubleshooting and maintenance activities.",
-		Arguments: []mcp.PromptArgument{},
+		Arguments:   []mcp.PromptArgument{},
 	}
 	s.AddPrompt(healthCheckPrompt, func(ctx context.Context, req mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
 		slog.InfoContext(ctx, "Executing health check prompt")
@@ -197,7 +197,7 @@ func RegisterPrompts(s *server.MCPServer, kafkaClient kafka.KafkaClient) {
 	underReplicatedPrompt := mcp.Prompt{
 		Name:        "kafka_under_replicated_partitions",
 		Description: "Identifies and analyzes partitions with insufficient replication, where the in-sync replica (ISR) count is less than the configured replication factor. Provides detailed reporting on affected topics, missing replicas, potential causes, and step-by-step troubleshooting recommendations to restore data durability.",
-		Arguments: []mcp.PromptArgument{},
+		Arguments:   []mcp.PromptArgument{},
 	}
 	s.AddPrompt(underReplicatedPrompt, func(ctx context.Context, req mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
 		slog.InfoContext(ctx, "Executing under-replicated partitions prompt")
@@ -416,7 +416,7 @@ func RegisterPrompts(s *server.MCPServer, kafkaClient kafka.KafkaClient) {
 			// For simplicity, we're just iterating through the unsorted slice
 			for _, detail := range highLagDetails {
 				response += fmt.Sprintf("| %s | %s | %d | %d | %d | %d |\n",
-					detail["group_id"], detail["topic"], detail["partition"].(int),
+					detail["group_id"], detail["topic"], detail["partition"].(int32),
 					detail["current_offset"].(int64), detail["log_end_offset"].(int64),
 					detail["lag"].(int64))
 			}
