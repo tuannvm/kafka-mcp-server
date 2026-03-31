@@ -10,7 +10,7 @@ import (
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
-	"github.com/tuannvm/kafka-mcp-server/internal/kafka"
+	"github.com/aeriondyseti/kafka-mcp-server/internal/kafka"
 )
 
 // RegisterPrompts registers prompts with the MCP server.

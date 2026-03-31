@@ -1,4 +1,4 @@
-module github.com/tuannvm/kafka-mcp-server
+module github.com/aeriondyseti/kafka-mcp-server
 
 go 1.24.9
 

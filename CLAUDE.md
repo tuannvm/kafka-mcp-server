@@ -9,7 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `make run-dev` - Run directly from source: `go run .`
 - `make run` - Run the built binary
 - `go build -ldflags "-X main.Version=$(VERSION)" -o bin/kafka-mcp-server .` - Build with version
-- `go run github.com/tuannvm/kafka-mcp-server@latest` - Run without cloning
+- `go run github.com/aeriondyseti/kafka-mcp-server@latest` - Run without cloning
 
 ### Testing
 - `make test` - Run all tests including integration tests (requires Docker)

@@ -11,7 +11,7 @@ import (
 	oauth "github.com/tuannvm/oauth-mcp-proxy"
 	"github.com/tuannvm/oauth-mcp-proxy/mark3labs"
 	"github.com/mark3labs/mcp-go/server"
-	"github.com/tuannvm/kafka-mcp-server/internal/config"
+	"github.com/aeriondyseti/kafka-mcp-server/internal/config"
 )
 
 // NewMCPServer creates a new MCP server instance.
