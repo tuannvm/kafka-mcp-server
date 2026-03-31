@@ -10,9 +10,9 @@ import (
 
 	oauth "github.com/tuannvm/oauth-mcp-proxy"
 	"github.com/mark3labs/mcp-go/server"
-	"github.com/tuannvm/kafka-mcp-server/internal/config"
-	"github.com/tuannvm/kafka-mcp-server/internal/kafka"
-	"github.com/tuannvm/kafka-mcp-server/internal/mcp"
+	"github.com/aeriondyseti/kafka-mcp-server/internal/config"
+	"github.com/aeriondyseti/kafka-mcp-server/internal/kafka"
+	"github.com/aeriondyseti/kafka-mcp-server/internal/mcp"
 )
 
 // Version is set during build via -X ldflags

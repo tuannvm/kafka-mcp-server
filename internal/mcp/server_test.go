@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tuannvm/kafka-mcp-server/internal/config"
+	"github.com/aeriondyseti/kafka-mcp-server/internal/config"
 )
 
 func TestNewMCPServer(t *testing.T) {
