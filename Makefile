@@ -8,7 +8,7 @@ BUILD_DIR=bin
 # Build the application
 build:
 	mkdir -p $(BUILD_DIR)
-	go build -ldflags "-X main.Version=$(VERSION)" -o $(BUILD_DIR)/$(BINARY_NAME) ./cmd
+	go build -ldflags "-X main.Version=$(VERSION)" -o $(BUILD_DIR)/$(BINARY_NAME) .
 
 # Run tests
 test:
@@ -24,7 +24,7 @@ clean:
 
 # Run the application in development mode
 run-dev:
-	go run cmd/main.go
+	go run .
 
 # Create a release snapshot using GoReleaser
 release-snapshot:

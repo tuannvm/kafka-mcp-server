@@ -6,9 +6,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Building and Running
 - `make build` - Build the binary to `bin/kafka-mcp-server`
-- `make run-dev` - Run directly from source: `go run cmd/server/main.go`
+- `make run-dev` - Run directly from source: `go run .`
 - `make run` - Run the built binary
-- `go build -ldflags "-X main.Version=$(VERSION)" -o bin/kafka-mcp-server ./cmd/server` - Build with version
+- `go build -ldflags "-X main.Version=$(VERSION)" -o bin/kafka-mcp-server .` - Build with version
+- `go run github.com/tuannvm/kafka-mcp-server@latest` - Run without cloning
 
 ### Testing
 - `make test` - Run all tests including integration tests (requires Docker)
@@ -28,10 +29,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project Architecture
 
 ### Core Components
-- **cmd/server/main.go** - Application entry point with graceful shutdown
-- **config/** - Environment-based configuration management
-- **kafka/** - Kafka client wrapper using franz-go library
-- **mcp/** - MCP server implementation with tools, resources, and prompts
+- **main.go** - Application entry point with graceful shutdown
+- **internal/config/** - Environment-based configuration management
+- **internal/kafka/** - Kafka client wrapper using franz-go library
+- **internal/mcp/** - MCP server implementation with tools, resources, and prompts
 
 ### Key Dependencies
 - **github.com/twmb/franz-go** - High-performance Kafka client
@@ -53,11 +54,11 @@ The server exposes:
 - **Prompts** - Pre-configured workflows for common operations
 
 ### Code Structure
-- **kafka/interface.go** - Defines KafkaClient interface
-- **kafka/client.go** - Implementation using franz-go
-- **mcp/tools.go** - MCP tool handlers
-- **mcp/resources.go** - MCP resource handlers  
-- **mcp/prompts.go** - Pre-configured prompt definitions
+- **internal/kafka/interface.go** - Defines KafkaClient interface
+- **internal/kafka/client.go** - Implementation using franz-go
+- **internal/mcp/tools.go** - MCP tool handlers
+- **internal/mcp/resources.go** - MCP resource handlers
+- **internal/mcp/prompts.go** - Pre-configured prompt definitions
 
 ### Entry Point Details
 The main.go correctly passes the KafkaClient interface to MCP registration functions, enabling dependency injection and testability.
