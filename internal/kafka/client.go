@@ -1003,3 +1003,145 @@ func (c *Client) Close() {
 func (c *Client) StringToResourceType(resourceTypeStr string) (ConfigResourceType, error) {
 	return StringToResourceType(resourceTypeStr)
 }
+
+
+func (c *Client) CreateTopic(ctx context.Context, topic string, partitions int32, replicationFactor int16) error {
+	req := kmsg.NewCreateTopicsRequest()
+	topicReq := kmsg.NewCreateTopicsRequestTopic()
+	topicReq.Topic = topic
+	topicReq.NumPartitions = partitions
+	topicReq.ReplicationFactor = replicationFactor
+
+	req.Topics = append(req.Topics, topicReq)
+
+	resp, err := c.kgoClient.Request(ctx, &req)
+	if err != nil {
+		return fmt.Errorf("CreateTopics request failed: %w", err)
+	}
+	createResp, ok := resp.(*kmsg.CreateTopicsResponse)
+	if !ok{
+		return fmt.Errorf("unexpected response type for CreateTopics request")
+	}
+	for _, topic := range createResp.Topics {
+		if topic.ErrorCode != 0 {
+			errMsg := kerr.ErrorForCode(topic.ErrorCode)
+			return fmt.Errorf("failed to create topic '%s': %w", topic.Topic, errMsg)
+		}
+	}
+	return nil
+}
+
+func (c *Client) ResetConsumerGroupOffsets(ctx context.Context, groupID string, topic string, partition int32, offset int64) error {
+	// Check that the consumer group is empty (no active members) before resetting.
+	descReq := kmsg.NewDescribeGroupsRequest()
+	descReq.Groups = []string{groupID}
+	descResp, err := c.kgoClient.Request(ctx, &descReq)
+	if err != nil {
+		return fmt.Errorf("failed to describe group '%s': %w", groupID, err)
+	}
+	descGroupsResp, ok := descResp.(*kmsg.DescribeGroupsResponse)
+	if !ok {
+		return fmt.Errorf("unexpected response type for DescribeGroups request")
+	}
+	if len(descGroupsResp.Groups) > 0 {
+		group := descGroupsResp.Groups[0]
+		if group.ErrorCode != 0 {
+			return fmt.Errorf("failed to describe group '%s': %w", groupID, kerr.ErrorForCode(group.ErrorCode))
+		}
+		if group.State != "Empty" && group.State != "Dead" {
+			return fmt.Errorf("consumer group '%s' is in state '%s' — it must be Empty (no active consumers) before offsets can be reset. Stop all consumers in the group and try again", groupID, group.State)
+		}
+	}
+
+	// Resolve special offset values: -1 (latest), -2 (earliest)
+	if offset == -1 || offset == -2 {
+		listReq := kmsg.NewListOffsetsRequest()
+		listReq.ReplicaID = -1
+		listTopic := kmsg.NewListOffsetsRequestTopic()
+		listTopic.Topic = topic
+		listPartition := kmsg.NewListOffsetsRequestTopicPartition()
+		listPartition.Partition = partition
+		listPartition.Timestamp = offset // -1 = latest, -2 = earliest
+		listTopic.Partitions = append(listTopic.Partitions, listPartition)
+		listReq.Topics = append(listReq.Topics, listTopic)
+
+		shardedResp := c.kgoClient.RequestSharded(ctx, &listReq)
+		resolved := false
+		for _, shard := range shardedResp {
+			if shard.Err != nil {
+				continue
+			}
+			listResp, ok := shard.Resp.(*kmsg.ListOffsetsResponse)
+			if !ok {
+				continue
+			}
+			for _, t := range listResp.Topics {
+				for _, p := range t.Partitions {
+					if p.ErrorCode != 0 {
+						return fmt.Errorf("failed to resolve offset for partition %d: %w", partition, kerr.ErrorForCode(p.ErrorCode))
+					}
+					offset = p.Offset
+					resolved = true
+				}
+			}
+		}
+		if !resolved {
+			return fmt.Errorf("failed to resolve offset for topic '%s' partition %d", topic, partition)
+		}
+		slog.InfoContext(ctx, "Resolved offset", "topic", topic, "partition", partition, "resolvedOffset", offset)
+	}
+
+	// Commit the offset for the consumer group using admin-style commit.
+	// GenerationID = -1 and MemberID = "" allows committing without being a group member.
+	commitReq := kmsg.NewOffsetCommitRequest()
+	commitReq.Group = groupID
+	commitReq.Generation = -1
+	commitReq.MemberID = ""
+	commitTopic := kmsg.NewOffsetCommitRequestTopic()
+	commitTopic.Topic = topic
+	commitPartition := kmsg.NewOffsetCommitRequestTopicPartition()
+	commitPartition.Partition = partition
+	commitPartition.Offset = offset
+	commitTopic.Partitions = append(commitTopic.Partitions, commitPartition)
+	commitReq.Topics = append(commitReq.Topics, commitTopic)
+
+	resp, err := c.kgoClient.Request(ctx, &commitReq)
+	if err != nil {
+		return fmt.Errorf("OffsetCommit request failed for group '%s': %w", groupID, err)
+	}
+	commitResp, ok := resp.(*kmsg.OffsetCommitResponse)
+	if !ok {
+		return fmt.Errorf("unexpected response type for OffsetCommit request")
+	}
+	for _, t := range commitResp.Topics {
+		for _, p := range t.Partitions {
+			if p.ErrorCode != 0 {
+				return fmt.Errorf("failed to commit offset for topic '%s' partition %d: %w", topic, p.Partition, kerr.ErrorForCode(p.ErrorCode))
+			}
+		}
+	}
+	return nil
+}
+
+func (c *Client) DeleteTopic(ctx context.Context, topic string) error {
+	req := kmsg.NewDeleteTopicsRequest()
+	topicReq := kmsg.NewDeleteTopicsRequestTopic()
+	topicReq.Topic = kmsg.StringPtr(topic)
+
+	req.Topics = append(req.Topics,topicReq)
+	resp, err := c.kgoClient.Request(ctx, &req)
+	if err != nil {
+		return fmt.Errorf("DeleteTopic request failed: %w", err)
+	}
+	deleteResp, ok := resp.(*kmsg.DeleteTopicsResponse)
+	if !ok{
+		return fmt.Errorf("unexpected response type for DeleteTopics request")
+	}
+	for _, topic := range deleteResp.Topics {
+		if topic.ErrorCode != 0 {
+			errMsg := kerr.ErrorForCode(topic.ErrorCode)
+			return fmt.Errorf("failed to delete topic '%s': %w", *topic.Topic, errMsg)
+		}
+	}
+	return nil
+}

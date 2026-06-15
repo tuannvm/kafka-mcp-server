@@ -177,7 +177,7 @@ func RegisterPrompts(s *server.MCPServer, kafkaClient kafka.KafkaClient) {
 
 		// Determine overall health status
 		critical := overview.OfflinePartitionsCount > 0 || overview.ControllerID == -1 || len(overview.OfflineBrokerIDs) > 0
-		warning := overview.UnderReplicatedPartitionsCount > 0 || ((groups != nil) && len(groups) > 0)
+		warning := overview.UnderReplicatedPartitionsCount > 0 || len(groups) > 0
 
 		emoji, statusText := formatHealthStatus(critical, warning)
 		response += fmt.Sprintf("%s **%s**: ", emoji, strings.ToUpper(statusText))

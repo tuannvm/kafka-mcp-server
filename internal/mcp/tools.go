@@ -370,5 +370,108 @@ func RegisterTools(s *server.MCPServer, kafkaClient kafka.KafkaClient, cfg confi
 		return mcp.NewToolResultText(string(jsonData)), nil
 	})
 
-	// TODO: Add admin tools (create_topic, delete_topic, etc.)
+	// --- creates a topic in the kafka cluster ---
+	createTopicTool := mcp.NewTool("create_topic",
+		mcp.WithDescription("Creates a new topic in the Kafka cluster. This is an admin operation best suited for dev/test environments. Use with caution in production. Will fail if the topic already exists."),
+		mcp.WithString("topic", mcp.Required(), mcp.Description("The name of the Kafka topic to create. Must not already exist in the cluster.")),
+		mcp.WithNumber("partitions", mcp.Description("Number of partitions (default: 1).")),
+		mcp.WithNumber("replication_factor", mcp.Description("Replication factor (default: 1). Cannot exceed the number of brokers.")),
+	)
+
+	s.AddTool(createTopicTool, func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) { // Use mcp.CallToolRequest, mcp.CallToolResult
+		topic := req.GetString("topic", "")
+		
+		if topic == "" {
+			return mcp.NewToolResultError("Missing required parameter: topic (string)"), nil
+		}
+
+		partitions := int32(req.GetFloat("partitions", 1))
+      	replicationFactor := int16(req.GetFloat("replication_factor", 1))
+
+		// Do not log raw keys; just indicate presence to avoid accidental PII leakage.
+		slog.InfoContext(ctx, "Executing create_topic tool", "topic", topic, "partitions", partitions, "replicationFactor", replicationFactor)
+
+		err := kafkaClient.CreateTopic(ctx, topic, partitions, replicationFactor)
+
+		if err != nil{
+			slog.ErrorContext(ctx, "Failed to create topic", "topic", topic, "error", err)
+			return mcp.NewToolResultError(fmt.Sprintf("Failed to create topic '%s': %v", topic, err)), nil
+		}
+		slog.InfoContext(ctx, "Topic created successfully", "topic", topic)
+		return mcp.NewToolResultText(fmt.Sprintf("Topic '%s' was created successfully with %d partitions and replication factor %d", topic, partitions, replicationFactor)), nil // Use mcp.NewToolResultText
+	})
+
+	// --- deletes a topic in the kafka cluster ---
+	deleteTopicTool := mcp.NewTool("delete_topic",
+		mcp.WithDescription("Permanently deletes a topic and all its data from the Kafka cluster. This is a destructive admin operation best suited for dev/test environments. Use with extreme caution in production as all messages in the topic will be lost."),
+		mcp.WithString("topic", mcp.Required(), mcp.Description("The name of the Kafka topic to delete. Must be an existing topic in the cluster.")),
+	)
+
+	s.AddTool(deleteTopicTool, func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) { // Use mcp.CallToolRequest, mcp.CallToolResult
+		topic := req.GetString("topic", "")
+		
+		if topic == "" {
+			return mcp.NewToolResultError("Missing required parameter: topic (string)"), nil
+		}
+
+		// Do not log raw keys; just indicate presence to avoid accidental PII leakage.
+		slog.InfoContext(ctx, "Executing delete_topic tool", "topic", topic)
+
+		err := kafkaClient.DeleteTopic(ctx, topic)
+
+		if err != nil{
+			slog.ErrorContext(ctx, "Failed to delete topic", "topic", topic, "error", err)
+			return mcp.NewToolResultError(fmt.Sprintf("Failed to delete topic '%s': %v", topic, err)), nil
+		}
+		slog.InfoContext(ctx, "Topic deleted successfully", "topic", topic)
+		return mcp.NewToolResultText(fmt.Sprintf("Topic '%s' was deleted successfully", topic)), nil // Use mcp.NewToolResultText
+	})
+
+	// --- reset_consumer_group_offsets tool ---
+	resetOffsetsTool := mcp.NewTool("reset_consumer_group_offsets",
+		mcp.WithDescription("Resets the committed offsets for a consumer group on a specific topic partition. The consumer group must have no active consumers (empty state). Use this tool for incident recovery, replaying messages, or skipping problematic messages. Use with caution as it affects message consumption."),
+		mcp.WithString("group_id", mcp.Required(), mcp.Description("The consumer group ID whose offsets will be reset.")),
+		mcp.WithString("topic", mcp.Required(), mcp.Description("The Kafka topic name to reset offsets for.")),
+		mcp.WithNumber("partition", mcp.Required(), mcp.Description("The partition number to reset the offset for.")),
+		mcp.WithNumber("offset", mcp.Required(), mcp.Description("The target offset to reset to. Use -1 for latest (end of partition), -2 for earliest (beginning of partition), or a specific offset number.")),
+	)
+
+	s.AddTool(resetOffsetsTool, func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		groupID := req.GetString("group_id", "")
+		if groupID == "" {
+			return mcp.NewToolResultError("Missing required parameter: group_id"), nil
+		}
+		topic := req.GetString("topic", "")
+		if topic == "" {
+			return mcp.NewToolResultError("Missing required parameter: topic"), nil
+		}
+		partition := int32(req.GetFloat("partition", -1))
+		if partition < 0 {
+			return mcp.NewToolResultError("Missing or invalid required parameter: partition (must be >= 0)"), nil
+		}
+		offset := int64(req.GetFloat("offset", 0))
+
+		slog.InfoContext(ctx, "Executing reset_consumer_group_offsets tool", "group", groupID, "topic", topic, "partition", partition, "offset", offset)
+
+		err := kafkaClient.ResetConsumerGroupOffsets(ctx, groupID, topic, partition, offset)
+		if err != nil {
+			slog.ErrorContext(ctx, "Failed to reset consumer group offsets", "group", groupID, "topic", topic, "partition", partition, "error", err)
+			return mcp.NewToolResultError(fmt.Sprintf("Failed to reset offsets for group '%s' on topic '%s' partition %d: %v", groupID, topic, partition, err)), nil
+		}
+
+		slog.InfoContext(ctx, "Successfully reset consumer group offsets", "group", groupID, "topic", topic, "partition", partition, "offset", offset)
+
+		result := map[string]interface{}{
+			"group_id":  groupID,
+			"topic":     topic,
+			"partition": partition,
+			"new_offset": offset,
+			"status":    "success",
+		}
+		jsonData, marshalErr := json.Marshal(result)
+		if marshalErr != nil {
+			return mcp.NewToolResultError("Internal server error: failed to marshal results"), nil
+		}
+		return mcp.NewToolResultText(string(jsonData)), nil
+	})
 }
