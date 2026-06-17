@@ -105,6 +105,14 @@ type DescribeConfigsResult struct {
 	ErrorMessage string        `json:"error_message,omitempty"`
 }
 
+// AlterTopicConfigResult holds the result of an alter topic config operation.
+type AlterTopicConfigResult struct {
+	Topic        string            `json:"topic"`
+	Configs      map[string]string `json:"configs"`
+	ErrorCode    int16             `json:"error_code,omitempty"`
+	ErrorMessage string            `json:"error_message,omitempty"`
+}
+
 // ClusterOverviewResult holds high-level cluster health information.
 type ClusterOverviewResult struct {
 	ControllerID                   int32   `json:"controller_id"`
@@ -990,6 +998,53 @@ func (c *Client) GetClusterOverview(ctx context.Context) (*ClusterOverviewResult
 	}
 
 	return overview, nil
+}
+
+// AlterTopicConfig modifies configuration settings on an existing topic
+// using the IncrementalAlterConfigs API (Kafka 2.3+).
+func (c *Client) AlterTopicConfig(ctx context.Context, topic string, configs map[string]string) (*AlterTopicConfigResult, error) {
+	req := kmsg.NewIncrementalAlterConfigsRequest()
+	resource := kmsg.NewIncrementalAlterConfigsRequestResource()
+	resource.ResourceType = kmsg.ConfigResourceType(ConfigResourceTypeTopic)
+	resource.ResourceName = topic
+
+	for key, value := range configs {
+		cfg := kmsg.NewIncrementalAlterConfigsRequestResourceConfig()
+		cfg.Name = key
+		cfg.Op = kmsg.IncrementalAlterConfigOpSet
+		cfg.Value = kmsg.StringPtr(value)
+		resource.Configs = append(resource.Configs, cfg)
+	}
+	req.Resources = append(req.Resources, resource)
+
+	resp, err := c.kgoClient.Request(ctx, &req)
+	if err != nil {
+		return nil, fmt.Errorf("IncrementalAlterConfigs request failed: %w", err)
+	}
+	alterResp, ok := resp.(*kmsg.IncrementalAlterConfigsResponse)
+	if !ok {
+		return nil, fmt.Errorf("unexpected response type for IncrementalAlterConfigs request")
+	}
+
+	for _, res := range alterResp.Resources {
+		if res.ErrorCode != 0 {
+			errMsg := kerr.ErrorForCode(res.ErrorCode)
+			detail := ""
+			if res.ErrorMessage != nil {
+				detail = *res.ErrorMessage
+			}
+			return &AlterTopicConfigResult{
+				Topic:        topic,
+				ErrorCode:    res.ErrorCode,
+				ErrorMessage: detail,
+			}, fmt.Errorf("failed to alter config for topic '%s': %w", topic, errMsg)
+		}
+	}
+
+	return &AlterTopicConfigResult{
+		Topic:   topic,
+		Configs: configs,
+	}, nil
 }
 
 // Close gracefully shuts down the Kafka client.

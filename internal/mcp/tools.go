@@ -370,5 +370,62 @@ func RegisterTools(s *server.MCPServer, kafkaClient kafka.KafkaClient, cfg confi
 		return mcp.NewToolResultText(string(jsonData)), nil
 	})
 
-	// TODO: Add admin tools (create_topic, delete_topic, etc.)
+	// --- alter_topic_config tool ---
+	alterTopicConfigTool := mcp.NewTool("alter_topic_config",
+		mcp.WithDescription("Modifies configuration settings on an existing Kafka topic. Use this tool to change retention policies, cleanup policies, segment sizes, and other topic-level settings. Only the specified config keys are changed; all other configs remain unchanged. Use describe_configs to verify changes afterward."),
+		mcp.WithString("topic", mcp.Required(), mcp.Description("The name of the Kafka topic whose configuration will be modified. Must be an existing topic.")),
+		mcp.WithObject("configs", mcp.Required(), mcp.Description("A JSON object of configuration key-value pairs to set. Example: {\"retention.ms\": \"86400000\", \"cleanup.policy\": \"compact\"}. All values must be strings.")),
+	)
+
+	s.AddTool(alterTopicConfigTool, func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		topic := req.GetString("topic", "")
+		if topic == "" {
+			return mcp.NewToolResultError("Missing required parameter: topic"), nil
+		}
+
+		// Extract configs from the request arguments
+		args, ok := req.Params.Arguments.(map[string]interface{})
+		if !ok {
+			return mcp.NewToolResultError("Invalid request arguments"), nil
+		}
+		configsRaw, ok := args["configs"]
+		if !ok {
+			return mcp.NewToolResultError("Missing required parameter: configs"), nil
+		}
+		configsMap, ok := configsRaw.(map[string]interface{})
+		if !ok {
+			return mcp.NewToolResultError("Parameter 'configs' must be a JSON object of key-value pairs"), nil
+		}
+		if len(configsMap) == 0 {
+			return mcp.NewToolResultError("Parameter 'configs' must contain at least one config key-value pair"), nil
+		}
+
+		configs := make(map[string]string, len(configsMap))
+		for k, v := range configsMap {
+			strVal, ok := v.(string)
+			if !ok {
+				return mcp.NewToolResultError(fmt.Sprintf("Config value for key '%s' must be a string", k)), nil
+			}
+			configs[k] = strVal
+		}
+
+		slog.InfoContext(ctx, "Executing alter_topic_config tool", "topic", topic, "configKeys", len(configs))
+
+		result, err := kafkaClient.AlterTopicConfig(ctx, topic, configs)
+		if err != nil {
+			slog.ErrorContext(ctx, "Failed to alter topic config", "topic", topic, "error", err)
+			if result != nil && result.ErrorMessage != "" {
+				return mcp.NewToolResultError(fmt.Sprintf("Failed to alter config for topic '%s': %s", topic, result.ErrorMessage)), nil
+			}
+			return mcp.NewToolResultError(fmt.Sprintf("Failed to alter config for topic '%s': %v", topic, err)), nil
+		}
+
+		slog.InfoContext(ctx, "Successfully altered topic config", "topic", topic)
+
+		jsonData, marshalErr := json.MarshalIndent(result, "", "  ")
+		if marshalErr != nil {
+			return mcp.NewToolResultError("Internal server error: failed to marshal results"), nil
+		}
+		return mcp.NewToolResultText(string(jsonData)), nil
+	})
 }

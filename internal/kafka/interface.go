@@ -40,6 +40,9 @@ type KafkaClient interface {
 	// StringToResourceType converts a string resource type to its corresponding ConfigResourceType
 	StringToResourceType(resourceTypeStr string) (ConfigResourceType, error)
 
+	// AlterTopicConfig modifies configuration settings on an existing topic.
+	AlterTopicConfig(ctx context.Context, topic string, configs map[string]string) (*AlterTopicConfigResult, error)
+
 	// Close gracefully shuts down the Kafka client.
 	Close()
 }
