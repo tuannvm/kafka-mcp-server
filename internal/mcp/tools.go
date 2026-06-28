@@ -370,5 +370,55 @@ func RegisterTools(s *server.MCPServer, kafkaClient kafka.KafkaClient, cfg confi
 		return mcp.NewToolResultText(string(jsonData)), nil
 	})
 
-	// TODO: Add admin tools (create_topic, delete_topic, etc.)
+	// --- get_partition_leaders tool ---
+	getPartitionLeadersTool := mcp.NewTool("get_partition_leaders",
+		mcp.WithDescription("Returns the leader broker for each partition of a given topic, along with replica and ISR information and a summary of leader distribution across brokers. Use this tool to diagnose uneven load distribution, identify partition leadership hotspots, or verify that leadership is balanced after broker changes."),
+		mcp.WithString("topic", mcp.Required(), mcp.Description("The name of the Kafka topic to get partition leaders for. Must be an existing topic.")),
+	)
+
+	s.AddTool(getPartitionLeadersTool, func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		topic := req.GetString("topic", "")
+		if topic == "" {
+			return mcp.NewToolResultError("Missing required parameter: topic"), nil
+		}
+
+		slog.InfoContext(ctx, "Executing get_partition_leaders tool", "topic", topic)
+
+		metadata, err := kafkaClient.DescribeTopic(ctx, topic)
+		if err != nil {
+			slog.ErrorContext(ctx, "Failed to get partition leaders", "topic", topic, "error", err)
+			return mcp.NewToolResultError(fmt.Sprintf("Failed to get partition leaders for topic '%s': %v", topic, err)), nil
+		}
+
+		partitions := make([]map[string]interface{}, 0, len(metadata.Partitions))
+		leaderCounts := make(map[int32]int)
+		for _, p := range metadata.Partitions {
+			leaderCounts[p.Leader]++
+			partitions = append(partitions, map[string]interface{}{
+				"partition": p.PartitionID,
+				"leader":    p.Leader,
+				"replicas":  p.Replicas,
+				"isr":       p.ISR,
+			})
+		}
+
+		distribution := make(map[string]int)
+		for brokerID, count := range leaderCounts {
+			distribution[fmt.Sprintf("broker_%d", brokerID)] = count
+		}
+
+		result := map[string]interface{}{
+			"topic":               topic,
+			"partitions":          partitions,
+			"leader_distribution": distribution,
+		}
+
+		jsonData, marshalErr := json.MarshalIndent(result, "", "  ")
+		if marshalErr != nil {
+			return mcp.NewToolResultError("Internal server error: failed to marshal results"), nil
+		}
+
+		slog.InfoContext(ctx, "Successfully retrieved partition leaders", "topic", topic)
+		return mcp.NewToolResultText(string(jsonData)), nil
+	})
 }
